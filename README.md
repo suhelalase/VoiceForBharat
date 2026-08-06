@@ -15,7 +15,8 @@ This workspace contains a simple Day 1 voice agent starter.
    ```
 2. Copy the environment example:
    ```bash
-   cp .env.example .env
+   cp .env.example .env  
+   
    ```
 3. Add your Murf API key and preferred voice ID to `.env`.
 4. Start the app:
