@@ -33,8 +33,8 @@ export interface AppConfig {
 }
 
 export const APP_CONFIG_DEFAULTS: AppConfig = {
-  companyName: 'IndicVox AI',
-  pageTitle: 'IndicVox AI — Bharat Voice AI Edition',
+  companyName: 'ZeroxAI',
+  pageTitle: 'ZeroxAI — Bharat Voice AI Edition',
   pageDescription: 'Next-Gen Voice Intelligence for Bharat — Powered by Gemini 3.5 & Murf Falcon TTS',
 
   supportsChatInput: true,
@@ -46,7 +46,7 @@ export const APP_CONFIG_DEFAULTS: AppConfig = {
   accent: '#FF9933',
   logoDark: '/murf-logo-dark.svg',
   accentDark: '#00E5FF',
-  startButtonText: 'Start IndicVox AI',
+  startButtonText: 'Start ZeroxAI',
 
   // Audio visualization setup: Glowing Aura with Cyber Saffron/Cyan
   audioVisualizerType: 'aura',
