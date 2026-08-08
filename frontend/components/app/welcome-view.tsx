@@ -1,20 +1,237 @@
+'use client';
+
+import { useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 
-function WelcomeImage() {
+// Animated rotating ring SVG
+function JarvisRings() {
   return (
-    <svg
-      width="64"
-      height="64"
-      viewBox="0 0 64 64"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      className="text-fg0 mb-4 size-16"
-    >
-      <path
-        d="M15 24V40C15 40.7957 14.6839 41.5587 14.1213 42.1213C13.5587 42.6839 12.7956 43 12 43C11.2044 43 10.4413 42.6839 9.87868 42.1213C9.31607 41.5587 9 40.7957 9 40V24C9 23.2044 9.31607 22.4413 9.87868 21.8787C10.4413 21.3161 11.2044 21 12 21C12.7956 21 13.5587 21.3161 14.1213 21.8787C14.6839 22.4413 15 23.2044 15 24ZM22 5C21.2044 5 20.4413 5.31607 19.8787 5.87868C19.3161 6.44129 19 7.20435 19 8V56C19 56.7957 19.3161 57.5587 19.8787 58.1213C20.4413 58.6839 21.2044 59 22 59C22.7956 59 23.5587 58.6839 24.1213 58.1213C24.6839 57.5587 25 56.7957 25 56V8C25 7.20435 24.6839 6.44129 24.1213 5.87868C23.5587 5.31607 22.7956 5 22 5ZM32 13C31.2044 13 30.4413 13.3161 29.8787 13.8787C29.3161 14.4413 29 15.2044 29 16V48C29 48.7957 29.3161 49.5587 29.8787 50.1213C30.4413 50.6839 31.2044 51 32 51C32.7956 51 33.5587 50.6839 34.1213 50.1213C34.6839 49.5587 35 48.7957 35 48V16C35 15.2044 34.6839 14.4413 34.1213 13.8787C33.5587 13.3161 32.7956 13 32 13ZM42 21C41.2043 21 40.4413 21.3161 39.8787 21.8787C39.3161 22.4413 39 23.2044 39 24V40C39 40.7957 39.3161 41.5587 39.8787 42.1213C40.4413 42.6839 41.2043 43 42 43C42.7957 43 43.5587 42.6839 44.1213 42.1213C44.6839 41.5587 45 40.7957 45 40V24C45 23.2044 44.6839 22.4413 44.1213 21.8787C43.5587 21.3161 42.7957 21 42 21ZM52 17C51.2043 17 50.4413 17.3161 49.8787 17.8787C49.3161 18.4413 49 19.2044 49 20V44C49 44.7957 49.3161 45.5587 49.8787 46.1213C50.4413 46.6839 51.2043 47 52 47C52.7957 47 53.5587 46.6839 54.1213 46.1213C54.6839 45.5587 55 44.7957 55 44V20C55 19.2044 54.6839 18.4413 54.1213 17.8787C53.5587 17.3161 52.7957 17 52 17Z"
-        fill="currentColor"
+    <div className="relative flex items-center justify-center" style={{ width: 280, height: 280 }}>
+      {/* Outermost glow ring */}
+      <div
+        className="absolute rounded-full"
+        style={{
+          width: 280,
+          height: 280,
+          border: '1px solid rgba(0,212,255,0.12)',
+          boxShadow: '0 0 30px rgba(0,212,255,0.08)',
+          animation: 'zerox-spin-slow 20s linear infinite',
+        }}
       />
-    </svg>
+
+      {/* Outer ring with dashes */}
+      <svg
+        width="280"
+        height="280"
+        viewBox="0 0 280 280"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+        className="absolute"
+        style={{ animation: 'zerox-spin-slow 15s linear infinite' }}
+      >
+        <circle
+          cx="140"
+          cy="140"
+          r="135"
+          stroke="rgba(0,212,255,0.25)"
+          strokeWidth="1"
+          strokeDasharray="8 6"
+        />
+        {/* Tick marks */}
+        {Array.from({ length: 36 }).map((_, i) => {
+          const angle = (i * 10 * Math.PI) / 180;
+          const x1 = 140 + 130 * Math.cos(angle);
+          const y1 = 140 + 130 * Math.sin(angle);
+          const x2 = 140 + (i % 3 === 0 ? 120 : 124) * Math.cos(angle);
+          const y2 = 140 + (i % 3 === 0 ? 120 : 124) * Math.sin(angle);
+          return (
+            <line
+              key={i}
+              x1={x1}
+              y1={y1}
+              x2={x2}
+              y2={y2}
+              stroke={i % 3 === 0 ? 'rgba(0,212,255,0.6)' : 'rgba(0,212,255,0.2)'}
+              strokeWidth={i % 3 === 0 ? '1.5' : '1'}
+            />
+          );
+        })}
+      </svg>
+
+      {/* Middle ring counter-rotating */}
+      <svg
+        width="220"
+        height="220"
+        viewBox="0 0 220 220"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+        className="absolute"
+        style={{ animation: 'zerox-spin-reverse 8s linear infinite' }}
+      >
+        <circle
+          cx="110"
+          cy="110"
+          r="105"
+          stroke="rgba(0,212,255,0.35)"
+          strokeWidth="1.5"
+          strokeDasharray="20 8 5 8"
+          strokeLinecap="round"
+        />
+        {/* Glowing arc segment */}
+        <path
+          d="M 110 5 A 105 105 0 0 1 205 110"
+          stroke="rgba(0,212,255,0.9)"
+          strokeWidth="2"
+          strokeLinecap="round"
+          filter="url(#glow)"
+        />
+        <defs>
+          <filter id="glow">
+            <feGaussianBlur stdDeviation="3" result="coloredBlur" />
+            <feMerge>
+              <feMergeNode in="coloredBlur" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+        </defs>
+      </svg>
+
+      {/* Inner ring */}
+      <svg
+        width="160"
+        height="160"
+        viewBox="0 0 160 160"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+        className="absolute"
+        style={{ animation: 'zerox-spin-slow 10s linear infinite' }}
+      >
+        <circle
+          cx="80"
+          cy="80"
+          r="75"
+          stroke="rgba(0,212,255,0.2)"
+          strokeWidth="1"
+          strokeDasharray="4 4"
+        />
+        {/* 4 corner diamonds */}
+        {[0, 90, 180, 270].map((deg) => {
+          const rad = (deg * Math.PI) / 180;
+          const x = 80 + 75 * Math.cos(rad);
+          const y = 80 + 75 * Math.sin(rad);
+          return (
+            <polygon
+              key={deg}
+              points={`${x},${y - 4} ${x + 4},${y} ${x},${y + 4} ${x - 4},${y}`}
+              fill="rgba(0,212,255,0.7)"
+              stroke="rgba(0,212,255,0.4)"
+              strokeWidth="0.5"
+            />
+          );
+        })}
+      </svg>
+
+      {/* Core hexagon */}
+      <div
+        className="relative flex items-center justify-center"
+        style={{
+          width: 90,
+          height: 90,
+          animation: 'zerox-pulse-ring 3s ease-in-out infinite',
+        }}
+      >
+        <svg width="90" height="90" viewBox="0 0 90 90" fill="none">
+          <polygon
+            points="45,5 80,22.5 80,67.5 45,85 10,67.5 10,22.5"
+            stroke="rgba(0,212,255,0.7)"
+            strokeWidth="1.5"
+            fill="rgba(0,212,255,0.08)"
+          />
+          <polygon
+            points="45,15 70,28.5 70,61.5 45,75 20,61.5 20,28.5"
+            stroke="rgba(0,212,255,0.35)"
+            strokeWidth="1"
+            fill="rgba(0,212,255,0.05)"
+          />
+          {/* Center pulsing dot */}
+          <circle
+            cx="45"
+            cy="45"
+            r="8"
+            fill="rgba(0,212,255,0.15)"
+            stroke="#00d4ff"
+            strokeWidth="1.5"
+          />
+          <circle cx="45" cy="45" r="4" fill="#00d4ff" opacity="0.9" />
+          {/* Cross lines */}
+          <line x1="45" y1="37" x2="45" y2="53" stroke="rgba(0,212,255,0.4)" strokeWidth="0.5" />
+          <line x1="37" y1="45" x2="53" y2="45" stroke="rgba(0,212,255,0.4)" strokeWidth="0.5" />
+        </svg>
+      </div>
+    </div>
+  );
+}
+
+// HUD data panels on sides
+function HUDPanel({ side }: { side: 'left' | 'right' }) {
+  const lines =
+    side === 'left'
+      ? [
+          { label: 'NEURAL CORE', value: 'ACTIVE' },
+          { label: 'STT ENGINE', value: 'DEEPGRAM' },
+          { label: 'TTS ENGINE', value: 'MURF FALCON' },
+          { label: 'LLM', value: 'GEMINI PRO' },
+          { label: 'LATENCY', value: '<50ms' },
+        ]
+      : [
+          { label: 'VAD STATUS', value: 'SILERO' },
+          { label: 'PROTOCOL', value: 'LIVEKIT' },
+          { label: 'ENCRYPTION', value: 'E2E AES' },
+          { label: 'BANDWIDTH', value: 'ADAPTIVE' },
+          { label: 'MODE', value: 'REALTIME' },
+        ];
+
+  return (
+    <div
+      className="flex flex-col gap-2 opacity-60"
+      style={{
+        fontFamily: 'var(--font-commit-mono), monospace',
+        textAlign: side === 'left' ? 'right' : 'left',
+      }}
+    >
+      {lines.map((item, i) => (
+        <div key={i} className="flex flex-col gap-0.5">
+          <span style={{ fontSize: '9px', color: 'rgba(0,212,255,0.5)', letterSpacing: '0.1em' }}>
+            {item.label}
+          </span>
+          <span
+            style={{
+              fontSize: '11px',
+              color: '#00d4ff',
+              letterSpacing: '0.08em',
+              fontWeight: 700,
+            }}
+          >
+            {item.value}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// Scanning horizontal bar
+function ScanLine() {
+  return (
+    <div
+      className="pointer-events-none absolute left-0 right-0"
+      style={{
+        height: '2px',
+        background: 'linear-gradient(90deg, transparent, rgba(0,212,255,0.4), transparent)',
+        animation: 'zerox-scan-line 4s linear infinite',
+        top: 0,
+      }}
+    />
   );
 }
 
@@ -29,37 +246,161 @@ export const WelcomeView = ({
   ref,
 }: React.ComponentProps<'div'> & WelcomeViewProps) => {
   return (
-    <div ref={ref}>
-      <section className="bg-background flex flex-col items-center justify-center text-center">
-        <WelcomeImage />
+    <div ref={ref} className="relative">
+      {/* Scan line effect on full screen */}
+      <ScanLine />
 
-        <p className="text-foreground max-w-prose pt-1 leading-6 font-medium">
-          Chat live with your voice AI agent
-        </p>
+      <section
+        className="relative flex flex-col items-center justify-center text-center"
+        style={{ minHeight: '100vh' }}
+      >
+        {/* Background radial glow */}
+        <div
+          className="pointer-events-none absolute"
+          style={{
+            width: 600,
+            height: 600,
+            borderRadius: '50%',
+            background: 'radial-gradient(circle, rgba(0,212,255,0.06) 0%, transparent 70%)',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+          }}
+        />
 
-        <Button
-          size="lg"
-          onClick={onStartCall}
-          className="mt-6 w-64 rounded-full font-mono text-xs font-bold tracking-wider uppercase"
-        >
-          {startButtonText}
-        </Button>
-      </section>
-
-      <div className="fixed bottom-5 left-0 flex w-full items-center justify-center">
-        <p className="text-muted-foreground max-w-prose pt-1 text-xs leading-5 font-normal text-pretty md:text-sm">
-          Need help getting set up? Check out the{' '}
-          <a
-            target="_blank"
-            rel="noopener noreferrer"
-            href="https://docs.livekit.io/agents/start/voice-ai/"
-            className="underline"
+        {/* Main content area */}
+        <div className="relative flex flex-col items-center gap-8 px-4">
+          {/* Top label */}
+          <div
+            className="flex items-center gap-3"
+            style={{
+              fontFamily: 'var(--font-commit-mono), monospace',
+              fontSize: '11px',
+              letterSpacing: '0.2em',
+              color: 'rgba(0,212,255,0.6)',
+              textTransform: 'uppercase',
+            }}
           >
-            Voice AI quickstart
-          </a>
-          .
-        </p>
-      </div>
+            <span className="zerox-status-dot" />
+            <span>Neural Interface Ready</span>
+            <span className="zerox-status-dot" />
+          </div>
+
+          {/* Jarvis rings + side panels */}
+          <div className="flex items-center gap-12">
+            {/* Left HUD panel */}
+            <div className="hidden md:block">
+              <HUDPanel side="left" />
+            </div>
+
+            {/* Central rings */}
+            <JarvisRings />
+
+            {/* Right HUD panel */}
+            <div className="hidden md:block">
+              <HUDPanel side="right" />
+            </div>
+          </div>
+
+          {/* ZeroxAI title */}
+          <div className="flex flex-col items-center gap-2">
+            <h1
+              className="font-mono font-bold uppercase tracking-[0.3em]"
+              style={{
+                fontSize: '2.5rem',
+                color: '#00d4ff',
+                textShadow:
+                  '0 0 20px rgba(0,212,255,0.8), 0 0 40px rgba(0,212,255,0.4), 0 0 80px rgba(0,212,255,0.2)',
+                animation: 'zerox-flicker 8s ease-in-out infinite',
+              }}
+            >
+              ZeroxAI
+            </h1>
+            <p
+              className="font-mono uppercase tracking-[0.2em]"
+              style={{ fontSize: '0.7rem', color: 'rgba(0,212,255,0.5)' }}
+            >
+              Advanced Voice Intelligence System
+            </p>
+          </div>
+
+          {/* Divider line */}
+          <div
+            className="w-full"
+            style={{
+              maxWidth: 320,
+              height: 1,
+              background:
+                'linear-gradient(90deg, transparent, rgba(0,212,255,0.4), transparent)',
+            }}
+          />
+
+          {/* Description */}
+          <p
+            className="font-mono"
+            style={{
+              maxWidth: 380,
+              fontSize: '0.75rem',
+              color: 'rgba(0,212,255,0.5)',
+              lineHeight: 1.8,
+              letterSpacing: '0.05em',
+            }}
+          >
+            Activate the neural voice interface to begin real-time AI communication. Powered by
+            Murf Falcon TTS and LiveKit Agents.
+          </p>
+
+          {/* Initialize button */}
+          <div className="relative">
+            {/* Button glow */}
+            <div
+              className="pointer-events-none absolute"
+              style={{
+                inset: -20,
+                borderRadius: 50,
+                background: 'radial-gradient(circle, rgba(0,212,255,0.08) 0%, transparent 70%)',
+                animation: 'zerox-pulse-ring 3s ease-in-out infinite',
+              }}
+            />
+            <Button
+              size="lg"
+              onClick={onStartCall}
+              className="relative mt-2 w-72 rounded-full font-mono text-xs font-bold tracking-wider uppercase"
+            >
+              {startButtonText}
+            </Button>
+          </div>
+
+          {/* Bottom HUD indicators */}
+          <div className="flex items-center gap-8 pt-2">
+            {['VOICE READY', 'AI CONNECTED', 'ENCRYPTED'].map((label, i) => (
+              <div key={i} className="flex items-center gap-1.5">
+                <span
+                  style={{
+                    width: 5,
+                    height: 5,
+                    borderRadius: '50%',
+                    background: '#00d4ff',
+                    boxShadow: '0 0 4px #00d4ff',
+                    display: 'inline-block',
+                  }}
+                />
+                <span
+                  style={{
+                    fontFamily: 'var(--font-commit-mono), monospace',
+                    fontSize: '9px',
+                    color: 'rgba(0,212,255,0.5)',
+                    letterSpacing: '0.12em',
+                    textTransform: 'uppercase',
+                  }}
+                >
+                  {label}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
     </div>
   );
 };

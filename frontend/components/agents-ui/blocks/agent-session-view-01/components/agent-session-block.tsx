@@ -101,11 +101,107 @@ export function Fade({ top = false, bottom = false, className }: FadeProps) {
   );
 }
 
+// Jarvis-style top HUD bar shown during conversation
+function SessionHUDBar({ agentState }: { agentState: string }) {
+  const stateLabels: Record<string, { label: string; color: string }> = {
+    connecting: { label: 'CONNECTING', color: 'rgba(0,212,255,0.5)' },
+    initializing: { label: 'INITIALIZING', color: 'rgba(0,212,255,0.6)' },
+    listening: { label: 'LISTENING', color: '#00d4ff' },
+    thinking: { label: 'PROCESSING', color: '#7b68ee' },
+    speaking: { label: 'SPEAKING', color: '#00ff88' },
+    idle: { label: 'STANDBY', color: 'rgba(0,212,255,0.5)' },
+  };
+
+  const stateInfo = stateLabels[agentState] ?? { label: agentState?.toUpperCase(), color: '#00d4ff' };
+
+  return (
+    <div
+      className="fixed top-0 left-0 right-0 z-40 flex items-center justify-between px-8 py-4"
+      style={{
+        background:
+          'linear-gradient(180deg, rgba(2,11,20,0.95) 0%, rgba(2,11,20,0) 100%)',
+        pointerEvents: 'none',
+      }}
+    >
+      {/* Left */}
+      <div className="flex items-center gap-3">
+        <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+          <polygon
+            points="11,1.5 19.5,6.25 19.5,15.75 11,20.5 2.5,15.75 2.5,6.25"
+            stroke="#00d4ff"
+            strokeWidth="1"
+            fill="rgba(0,212,255,0.07)"
+          />
+          <circle cx="11" cy="11" r="2.5" fill="#00d4ff" opacity="0.8" />
+        </svg>
+        <span
+          style={{
+            fontFamily: 'var(--font-commit-mono), monospace',
+            fontSize: '12px',
+            fontWeight: 700,
+            color: '#00d4ff',
+            letterSpacing: '0.15em',
+            textTransform: 'uppercase',
+            textShadow: '0 0 8px rgba(0,212,255,0.6)',
+          }}
+        >
+          ZeroxAI
+        </span>
+      </div>
+
+      {/* Center: agent state */}
+      <div
+        className="flex items-center gap-2 rounded-full px-4 py-1"
+        style={{
+          background: 'rgba(0,212,255,0.04)',
+          border: `1px solid ${stateInfo.color}40`,
+        }}
+      >
+        <span
+          style={{
+            width: 6,
+            height: 6,
+            borderRadius: '50%',
+            background: stateInfo.color,
+            boxShadow: `0 0 6px ${stateInfo.color}`,
+            display: 'inline-block',
+            animation: 'zerox-pulse-ring 2s ease-in-out infinite',
+          }}
+        />
+        <span
+          style={{
+            fontFamily: 'var(--font-commit-mono), monospace',
+            fontSize: '10px',
+            color: stateInfo.color,
+            letterSpacing: '0.18em',
+            textTransform: 'uppercase',
+          }}
+        >
+          {stateInfo.label}
+        </span>
+      </div>
+
+      {/* Right */}
+      <span
+        style={{
+          fontFamily: 'var(--font-commit-mono), monospace',
+          fontSize: '9px',
+          color: 'rgba(0,212,255,0.35)',
+          letterSpacing: '0.12em',
+          textTransform: 'uppercase',
+        }}
+      >
+        Neural Voice Interface
+      </span>
+    </div>
+  );
+}
+
 export interface AgentSessionView_01Props {
   /**
    * Message shown above the controls before the first chat message is sent.
    *
-   * @default 'Agent is listening, ask it a question'
+   * @default 'Zerox is listening…'
    */
   preConnectMessage?: string;
   /**
@@ -156,7 +252,7 @@ export interface AgentSessionView_01Props {
 }
 
 export function AgentSessionView_01({
-  preConnectMessage = 'Agent is listening, ask it a question',
+  preConnectMessage = 'ZeroxAI is listening… speak to begin',
   supportsChatInput = true,
   supportsVideoInput = true,
   supportsScreenShare = true,
@@ -204,6 +300,9 @@ export function AgentSessionView_01({
       className={cn('bg-background relative z-10 h-full w-full overflow-hidden', className)}
       {...props}
     >
+      {/* ZeroxAI HUD bar */}
+      <SessionHUDBar agentState={agentState ?? 'connecting'} />
+
       <Fade top className="absolute inset-x-4 top-0 z-10 h-40" />
       {/* transcript */}
 
@@ -251,22 +350,42 @@ export function AgentSessionView_01({
                 aria-hidden={messages.length > 0}
                 {...SHIMMER_MOTION_PROPS}
                 className="pointer-events-none mx-auto block w-full max-w-2xl pb-4 text-center text-sm font-semibold"
+                style={{
+                  fontFamily: 'var(--font-commit-mono), monospace',
+                  color: 'rgba(0,212,255,0.6)',
+                  letterSpacing: '0.08em',
+                  fontSize: '0.75rem',
+                }}
               >
                 {preConnectMessage}
               </MotionMessage>
             )}
           </AnimatePresence>
         )}
-        <div className="bg-background relative mx-auto max-w-2xl pb-3 md:pb-12">
+        <div
+          className="relative mx-auto max-w-2xl pb-3 md:pb-12"
+          style={{ background: 'transparent' }}
+        >
           <Fade bottom className="absolute inset-x-0 top-0 h-4 -translate-y-full" />
-          <AgentControlBar
-            variant="livekit"
-            controls={controls}
-            isChatOpen={chatOpen}
-            isConnected={session.isConnected}
-            onDisconnect={session.end}
-            onIsChatOpenChange={setChatOpen}
-          />
+          {/* ZeroxAI styled control bar wrapper */}
+          <div
+            className="rounded-2xl px-2 py-2"
+            style={{
+              background: 'rgba(2,11,20,0.8)',
+              border: '1px solid rgba(0,212,255,0.12)',
+              backdropFilter: 'blur(20px)',
+              boxShadow: '0 0 30px rgba(0,0,0,0.5), 0 0 0 1px rgba(0,212,255,0.05)',
+            }}
+          >
+            <AgentControlBar
+              variant="livekit"
+              controls={controls}
+              isChatOpen={chatOpen}
+              isConnected={session.isConnected}
+              onDisconnect={session.end}
+              onIsChatOpenChange={setChatOpen}
+            />
+          </div>
         </div>
       </motion.div>
     </section>
