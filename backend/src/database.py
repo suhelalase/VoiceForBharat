@@ -78,6 +78,17 @@ class MemoryDB:
                 )
                 """
             )
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS chat_sessions (
+                    session_id       TEXT PRIMARY KEY,
+                    user_id          TEXT    NOT NULL DEFAULT '',
+                    title            TEXT    NOT NULL DEFAULT 'Voice Session',
+                    messages         TEXT    NOT NULL DEFAULT '[]',
+                    created_at       TEXT    NOT NULL DEFAULT ''
+                )
+                """
+            )
             conn.commit()
             conn.close()
             logger.info("MemoryDB initialised at %s", self._db_path)
@@ -164,3 +175,117 @@ class MemoryDB:
         except Exception:
             logger.exception("save_user failed for %s", user_id)
             return UserMemory(user_id=user_id)
+
+    def save_chat_session(
+        self,
+        session_id: str,
+        user_id: str = "",
+        title: str = "Voice Session",
+        messages: list | None = None,
+    ) -> dict:
+        """Save or update a chat session transcript."""
+        try:
+            now = datetime.now(timezone.utc).isoformat()
+            msgs_json = json.dumps(messages or [], ensure_ascii=False)
+            conn = sqlite3.connect(str(self._db_path))
+            conn.execute(
+                """
+                INSERT INTO chat_sessions (session_id, user_id, title, messages, created_at)
+                VALUES (?, ?, ?, ?, ?)
+                ON CONFLICT(session_id) DO UPDATE SET
+                    user_id    = excluded.user_id,
+                    title      = excluded.title,
+                    messages   = excluded.messages,
+                    created_at = excluded.created_at
+                """,
+                (session_id, user_id, title, msgs_json, now),
+            )
+            conn.commit()
+            conn.close()
+            return {
+                "session_id": session_id,
+                "user_id": user_id,
+                "title": title,
+                "messages": messages or [],
+                "created_at": now,
+            }
+        except Exception:
+            logger.exception("save_chat_session failed for %s", session_id)
+            return {}
+
+    def get_chat_sessions(self, user_id: str | None = None) -> list[dict]:
+        """Fetch all chat sessions (optionally filtered by user_id)."""
+        try:
+            conn = sqlite3.connect(str(self._db_path))
+            conn.row_factory = sqlite3.Row
+            if user_id:
+                rows = conn.execute(
+                    "SELECT * FROM chat_sessions WHERE user_id = ? ORDER BY created_at DESC",
+                    (user_id,),
+                ).fetchall()
+            else:
+                rows = conn.execute(
+                    "SELECT * FROM chat_sessions ORDER BY created_at DESC"
+                ).fetchall()
+            conn.close()
+
+            results = []
+            for row in rows:
+                results.append(
+                    {
+                        "session_id": row["session_id"],
+                        "user_id": row["user_id"],
+                        "title": row["title"],
+                        "messages": json.loads(row["messages"] or "[]"),
+                        "created_at": row["created_at"],
+                    }
+                )
+            return results
+        except Exception:
+            logger.exception("get_chat_sessions failed")
+            return []
+
+    def delete_chat_session(self, session_id: str) -> bool:
+        """Delete a chat session by ID, or delete all if session_id == 'ALL'."""
+        try:
+            conn = sqlite3.connect(str(self._db_path))
+            if session_id.upper() == "ALL":
+                conn.execute("DELETE FROM chat_sessions")
+            else:
+                conn.execute(
+                    "DELETE FROM chat_sessions WHERE session_id = ?",
+                    (session_id,),
+                )
+            conn.commit()
+            conn.close()
+            return True
+        except Exception:
+            logger.exception("delete_chat_session failed for %s", session_id)
+            return False
+
+
+if __name__ == "__main__":
+    import sys
+
+    db = MemoryDB()
+    cmd = sys.argv[1] if len(sys.argv) > 1 else "list"
+
+    if cmd == "list":
+        print(json.dumps(db.get_chat_sessions(), ensure_ascii=False))
+    elif cmd == "save":
+        payload = json.loads(sys.stdin.read())
+        saved = db.save_chat_session(
+            session_id=payload.get("session_id", ""),
+            user_id=payload.get("user_id", ""),
+            title=payload.get("title", "Voice Session"),
+            messages=payload.get("messages", []),
+        )
+        print(json.dumps(saved, ensure_ascii=False))
+    elif cmd == "delete":
+        sid = sys.argv[2] if len(sys.argv) > 2 else "ALL"
+        ok = db.delete_chat_session(sid)
+        print(json.dumps({"success": ok}))
+    elif cmd == "users":
+        user_id = sys.argv[2] if len(sys.argv) > 2 else ""
+        u = db.get_user(user_id) if user_id else None
+        print(json.dumps(u.to_dict() if u else {}, ensure_ascii=False))

@@ -3,12 +3,19 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, type MotionProps, motion } from 'motion/react';
 import { useAgent, useSessionContext, useSessionMessages } from '@livekit/components-react';
+import { ClockIcon } from '@phosphor-icons/react/dist/ssr';
 import { AgentChatTranscript } from '@/components/agents-ui/agent-chat-transcript';
 import {
   AgentControlBar,
   type AgentControlBarControls,
 } from '@/components/agents-ui/agent-control-bar';
 import { Shimmer } from '@/components/ai-elements/shimmer';
+import {
+  ChatHistoryDrawer,
+  type ChatMessage,
+  getLocalChatHistory,
+  saveLocalChatHistory,
+} from '@/components/app/chat-history-drawer';
 import { cn } from '@/lib/shadcn/utils';
 import { TileLayout } from './tile-view';
 
@@ -102,7 +109,13 @@ export function Fade({ top = false, bottom = false, className }: FadeProps) {
 }
 
 // Jarvis-style top HUD bar shown during conversation
-function SessionHUDBar({ agentState }: { agentState: string }) {
+function SessionHUDBar({
+  agentState,
+  onOpenHistory,
+}: {
+  agentState: string;
+  onOpenHistory: () => void;
+}) {
   const stateLabels: Record<string, { label: string; color: string }> = {
     connecting: { label: 'CONNECTING', color: 'rgba(0,212,255,0.5)' },
     initializing: { label: 'INITIALIZING', color: 'rgba(0,212,255,0.6)' },
@@ -119,14 +132,13 @@ function SessionHUDBar({ agentState }: { agentState: string }) {
 
   return (
     <div
-      className="fixed top-0 right-0 left-0 z-40 flex items-center justify-between px-8 py-4"
+      className="pointer-events-none fixed top-0 right-0 left-0 z-40 flex items-center justify-between px-8 py-4"
       style={{
         background: 'linear-gradient(180deg, rgba(2,11,20,0.95) 0%, rgba(2,11,20,0) 100%)',
-        pointerEvents: 'none',
       }}
     >
       {/* Left */}
-      <div className="flex items-center gap-3">
+      <div className="pointer-events-auto flex items-center gap-3">
         <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
           <polygon
             points="11,1.5 19.5,6.25 19.5,15.75 11,20.5 2.5,15.75 2.5,6.25"
@@ -153,7 +165,7 @@ function SessionHUDBar({ agentState }: { agentState: string }) {
 
       {/* Center: agent state */}
       <div
-        className="flex items-center gap-2 rounded-full px-4 py-1"
+        className="pointer-events-auto flex items-center gap-2 rounded-full px-4 py-1"
         style={{
           background: 'rgba(0,212,255,0.04)',
           border: `1px solid ${stateInfo.color}40`,
@@ -183,18 +195,14 @@ function SessionHUDBar({ agentState }: { agentState: string }) {
         </span>
       </div>
 
-      {/* Right */}
-      <span
-        style={{
-          fontFamily: 'var(--font-commit-mono), monospace',
-          fontSize: '9px',
-          color: 'rgba(0,212,255,0.35)',
-          letterSpacing: '0.12em',
-          textTransform: 'uppercase',
-        }}
+      {/* Right: History Trigger */}
+      <button
+        onClick={onOpenHistory}
+        className="pointer-events-auto flex items-center gap-1.5 rounded-lg border border-[rgba(0,212,255,0.3)] bg-[rgba(0,212,255,0.08)] px-3 py-1.5 font-mono text-[10px] tracking-wider text-[#00d4ff] uppercase transition hover:bg-[rgba(0,212,255,0.2)]"
       >
-        Neural Voice Interface
-      </span>
+        <ClockIcon className="h-3.5 w-3.5" />
+        <span>History</span>
+      </button>
     </div>
   );
 }
@@ -276,8 +284,10 @@ export function AgentSessionView_01({
   const session = useSessionContext();
   const { messages } = useSessionMessages(session);
   const [chatOpen, setChatOpen] = useState(false);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const { state: agentState } = useAgent();
+  const sessionIdRef = useRef<string>(`session_${Date.now()}`);
 
   const controls: AgentControlBarControls = {
     leave: true,
@@ -294,6 +304,40 @@ export function AgentSessionView_01({
     if (scrollAreaRef.current && lastMessageIsLocal) {
       scrollAreaRef.current.scrollTop = scrollAreaRef.current.scrollHeight;
     }
+
+    if (messages.length > 0) {
+      const formattedMsgs: ChatMessage[] = messages.map((m) => ({
+        id: m.id,
+        role: m.from?.isLocal ? 'user' : 'assistant',
+        content: m.message,
+        timestamp: new Date(m.timestamp).toISOString(),
+      }));
+
+      const firstMsgSnippet = messages[0]?.message.slice(0, 30) || 'Voice Session';
+      const sessionData = {
+        session_id: sessionIdRef.current,
+        title: `Voice Session: "${firstMsgSnippet}..."`,
+        messages: formattedMsgs,
+        created_at: new Date().toISOString(),
+      };
+
+      // Save locally
+      const existing = getLocalChatHistory();
+      const idx = existing.findIndex((s) => s.session_id === sessionData.session_id);
+      if (idx >= 0) {
+        existing[idx] = sessionData;
+      } else {
+        existing.unshift(sessionData);
+      }
+      saveLocalChatHistory(existing);
+
+      // Post to backend
+      fetch('/api/history', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(sessionData),
+      }).catch(() => {});
+    }
   }, [messages]);
 
   return (
@@ -303,7 +347,11 @@ export function AgentSessionView_01({
       {...props}
     >
       {/* ZeroxAI HUD bar */}
-      <SessionHUDBar agentState={agentState ?? 'connecting'} />
+      <SessionHUDBar
+        agentState={agentState ?? 'connecting'}
+        onOpenHistory={() => setIsHistoryOpen(true)}
+      />
+      <ChatHistoryDrawer isOpen={isHistoryOpen} onClose={() => setIsHistoryOpen(false)} />
 
       <Fade top className="absolute inset-x-4 top-0 z-10 h-40" />
       {/* transcript */}

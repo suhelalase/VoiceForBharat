@@ -1,6 +1,8 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useState } from 'react';
+import { ClockIcon } from '@phosphor-icons/react/dist/ssr';
+import { ChatHistoryDrawer } from '@/components/app/chat-history-drawer';
 import { Button } from '@/components/ui/button';
 
 // Animated rotating ring SVG
@@ -245,6 +247,8 @@ export const WelcomeView = ({
   onStartCall,
   ref,
 }: React.ComponentProps<'div'> & WelcomeViewProps) => {
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+
   return (
     <div ref={ref} className="relative">
       {/* Scan line effect on full screen */}
@@ -349,8 +353,8 @@ export const WelcomeView = ({
             Falcon TTS and LiveKit Agents.
           </p>
 
-          {/* Initialize button */}
-          <div className="relative">
+          {/* Initialize button & History button */}
+          <div className="relative flex flex-col items-center gap-3 md:flex-row">
             {/* Button glow */}
             <div
               className="pointer-events-none absolute"
@@ -368,7 +372,17 @@ export const WelcomeView = ({
             >
               {startButtonText}
             </Button>
+
+            <button
+              onClick={() => setIsHistoryOpen(true)}
+              className="relative mt-2 flex items-center justify-center gap-2 rounded-full border border-[rgba(0,212,255,0.4)] bg-[#071220]/80 px-6 py-3 font-mono text-xs font-bold tracking-wider text-[#00d4ff] uppercase shadow-[0_0_15px_rgba(0,212,255,0.15)] transition hover:border-[#00d4ff] hover:bg-[#00d4ff]/15 hover:shadow-[0_0_25px_rgba(0,212,255,0.3)]"
+            >
+              <ClockIcon className="h-4 w-4" weight="bold" />
+              <span>Previous Chats</span>
+            </button>
           </div>
+
+          <ChatHistoryDrawer isOpen={isHistoryOpen} onClose={() => setIsHistoryOpen(false)} />
 
           {/* Bottom HUD indicators */}
           <div className="flex flex-wrap items-center justify-center gap-6 pt-2">
