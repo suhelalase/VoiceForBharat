@@ -34,8 +34,8 @@ export interface AppConfig {
 
 export const APP_CONFIG_DEFAULTS: AppConfig = {
   companyName: 'ZeroxAI',
-  pageTitle: 'ZeroxAI — Voice Intelligence',
-  pageDescription: 'ZeroxAI — Advanced voice AI powered by cutting-edge neural technology',
+  pageTitle: 'ZeroxAI — Voice Intelligence with Memory',
+  pageDescription: 'ZeroxAI — Voice AI that remembers you. Powered by Murf Falcon TTS and LiveKit Agents.',
 
   supportsChatInput: true,
   supportsVideoInput: true,
@@ -46,7 +46,7 @@ export const APP_CONFIG_DEFAULTS: AppConfig = {
   accent: '#00d4ff',
   logoDark: '/murf-logo-dark.svg',
   accentDark: '#00d4ff',
-  startButtonText: 'Initialize ZeroxAI',
+  startButtonText: 'Connect & Be Remembered',
 
   // Jarvis-like aura visualizer with cyan color
   audioVisualizerType: 'aura',

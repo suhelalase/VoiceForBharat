@@ -180,14 +180,14 @@ function HUDPanel({ side }: { side: 'left' | 'right' }) {
           { label: 'NEURAL CORE', value: 'ACTIVE' },
           { label: 'STT ENGINE', value: 'DEEPGRAM' },
           { label: 'TTS ENGINE', value: 'MURF FALCON' },
-          { label: 'LLM', value: 'GEMINI PRO' },
-          { label: 'LATENCY', value: '<50ms' },
+          { label: 'LLM', value: 'GEMINI' },
+          { label: 'MEMORY', value: 'SQLITE' },
         ]
       : [
-          { label: 'VAD STATUS', value: 'SILERO' },
+          { label: 'RECALL', value: 'ACTIVE' },
           { label: 'PROTOCOL', value: 'LIVEKIT' },
           { label: 'ENCRYPTION', value: 'E2E AES' },
-          { label: 'BANDWIDTH', value: 'ADAPTIVE' },
+          { label: 'CONSENT', value: 'REQUIRED' },
           { label: 'MODE', value: 'REALTIME' },
         ];
 
@@ -320,7 +320,7 @@ export const WelcomeView = ({
               className="font-mono uppercase tracking-[0.2em]"
               style={{ fontSize: '0.7rem', color: 'rgba(0,212,255,0.5)' }}
             >
-              Advanced Voice Intelligence System
+              Voice Intelligence · Persistent Memory
             </p>
           </div>
 
@@ -372,16 +372,16 @@ export const WelcomeView = ({
           </div>
 
           {/* Bottom HUD indicators */}
-          <div className="flex items-center gap-8 pt-2">
-            {['VOICE READY', 'AI CONNECTED', 'ENCRYPTED'].map((label, i) => (
+          <div className="flex items-center gap-6 pt-2 flex-wrap justify-center">
+            {['VOICE READY', 'AI CONNECTED', 'ENCRYPTED', 'MEMORY ACTIVE'].map((label, i) => (
               <div key={i} className="flex items-center gap-1.5">
                 <span
                   style={{
                     width: 5,
                     height: 5,
                     borderRadius: '50%',
-                    background: '#00d4ff',
-                    boxShadow: '0 0 4px #00d4ff',
+                    background: label === 'MEMORY ACTIVE' ? '#a78bfa' : '#00d4ff',
+                    boxShadow: label === 'MEMORY ACTIVE' ? '0 0 6px #a78bfa' : '0 0 4px #00d4ff',
                     display: 'inline-block',
                   }}
                 />
@@ -389,7 +389,7 @@ export const WelcomeView = ({
                   style={{
                     fontFamily: 'var(--font-commit-mono), monospace',
                     fontSize: '9px',
-                    color: 'rgba(0,212,255,0.5)',
+                    color: label === 'MEMORY ACTIVE' ? 'rgba(167,139,250,0.7)' : 'rgba(0,212,255,0.5)',
                     letterSpacing: '0.12em',
                     textTransform: 'uppercase',
                   }}

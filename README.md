@@ -107,7 +107,7 @@ chmod +x start_app.sh
 
 ```bash
 # Terminal 1 — LiveKit Server
-livekit-server --dev
+livekit-server --dev  
 
 # Terminal 2 — Backend agent
 cd backend && uv run python src/agent.py dev
