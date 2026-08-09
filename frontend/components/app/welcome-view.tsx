@@ -224,7 +224,7 @@ function HUDPanel({ side }: { side: 'left' | 'right' }) {
 function ScanLine() {
   return (
     <div
-      className="pointer-events-none absolute left-0 right-0"
+      className="pointer-events-none absolute right-0 left-0"
       style={{
         height: '2px',
         background: 'linear-gradient(90deg, transparent, rgba(0,212,255,0.4), transparent)',
@@ -305,7 +305,7 @@ export const WelcomeView = ({
           {/* ZeroxAI title */}
           <div className="flex flex-col items-center gap-2">
             <h1
-              className="font-mono font-bold uppercase tracking-[0.3em]"
+              className="font-mono font-bold tracking-[0.3em] uppercase"
               style={{
                 fontSize: '2.5rem',
                 color: '#00d4ff',
@@ -317,7 +317,7 @@ export const WelcomeView = ({
               ZeroxAI
             </h1>
             <p
-              className="font-mono uppercase tracking-[0.2em]"
+              className="font-mono tracking-[0.2em] uppercase"
               style={{ fontSize: '0.7rem', color: 'rgba(0,212,255,0.5)' }}
             >
               Voice Intelligence · Persistent Memory
@@ -330,8 +330,7 @@ export const WelcomeView = ({
             style={{
               maxWidth: 320,
               height: 1,
-              background:
-                'linear-gradient(90deg, transparent, rgba(0,212,255,0.4), transparent)',
+              background: 'linear-gradient(90deg, transparent, rgba(0,212,255,0.4), transparent)',
             }}
           />
 
@@ -346,8 +345,8 @@ export const WelcomeView = ({
               letterSpacing: '0.05em',
             }}
           >
-            Activate the neural voice interface to begin real-time AI communication. Powered by
-            Murf Falcon TTS and LiveKit Agents.
+            Activate the neural voice interface to begin real-time AI communication. Powered by Murf
+            Falcon TTS and LiveKit Agents.
           </p>
 
           {/* Initialize button */}
@@ -372,7 +371,7 @@ export const WelcomeView = ({
           </div>
 
           {/* Bottom HUD indicators */}
-          <div className="flex items-center gap-6 pt-2 flex-wrap justify-center">
+          <div className="flex flex-wrap items-center justify-center gap-6 pt-2">
             {['VOICE READY', 'AI CONNECTED', 'ENCRYPTED', 'MEMORY ACTIVE'].map((label, i) => (
               <div key={i} className="flex items-center gap-1.5">
                 <span
@@ -389,7 +388,8 @@ export const WelcomeView = ({
                   style={{
                     fontFamily: 'var(--font-commit-mono), monospace',
                     fontSize: '9px',
-                    color: label === 'MEMORY ACTIVE' ? 'rgba(167,139,250,0.7)' : 'rgba(0,212,255,0.5)',
+                    color:
+                      label === 'MEMORY ACTIVE' ? 'rgba(167,139,250,0.7)' : 'rgba(0,212,255,0.5)',
                     letterSpacing: '0.12em',
                     textTransform: 'uppercase',
                   }}

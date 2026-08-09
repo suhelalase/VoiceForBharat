@@ -112,14 +112,16 @@ function SessionHUDBar({ agentState }: { agentState: string }) {
     idle: { label: 'STANDBY', color: 'rgba(0,212,255,0.5)' },
   };
 
-  const stateInfo = stateLabels[agentState] ?? { label: agentState?.toUpperCase(), color: '#00d4ff' };
+  const stateInfo = stateLabels[agentState] ?? {
+    label: agentState?.toUpperCase(),
+    color: '#00d4ff',
+  };
 
   return (
     <div
-      className="fixed top-0 left-0 right-0 z-40 flex items-center justify-between px-8 py-4"
+      className="fixed top-0 right-0 left-0 z-40 flex items-center justify-between px-8 py-4"
       style={{
-        background:
-          'linear-gradient(180deg, rgba(2,11,20,0.95) 0%, rgba(2,11,20,0) 100%)',
+        background: 'linear-gradient(180deg, rgba(2,11,20,0.95) 0%, rgba(2,11,20,0) 100%)',
         pointerEvents: 'none',
       }}
     >

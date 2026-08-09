@@ -35,7 +35,8 @@ export interface AppConfig {
 export const APP_CONFIG_DEFAULTS: AppConfig = {
   companyName: 'ZeroxAI',
   pageTitle: 'ZeroxAI — Voice Intelligence with Memory',
-  pageDescription: 'ZeroxAI — Voice AI that remembers you. Powered by Murf Falcon TTS and LiveKit Agents.',
+  pageDescription:
+    'ZeroxAI — Voice AI that remembers you. Powered by Murf Falcon TTS and LiveKit Agents.',
 
   supportsChatInput: true,
   supportsVideoInput: true,
