@@ -168,6 +168,11 @@ async def my_agent(ctx: JobContext):
 
     await ctx.connect()
 
+    # Outbound call behavior: Agent initiates the conversation first before the user speaks
+    await session.generate_reply(
+        instructions="Greet the caller immediately with your mandatory outbound call opening. State who you are (Pooja from FreshMart Local Store), why you are calling (order confirmation and restock reminder), and how to opt out (say 'stop calling')."
+    )
+
 
 if __name__ == "__main__":
     cli.run_app(server)
