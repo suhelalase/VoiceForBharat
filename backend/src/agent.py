@@ -55,7 +55,7 @@ ALWAYS ask their permission before saving it:
 # Assistant with memory tools
 # ──────────────────────────────────────────────────────────────
 class Assistant(Agent):
-    def __init__(self, user_id: str) -> None:
+    def __init__(self, user_id: str = "default_user") -> None:
         super().__init__(instructions=SYSTEM_PROMPT)
         self._user_id = user_id
 
