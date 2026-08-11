@@ -137,7 +137,7 @@ async def my_agent(ctx: JobContext):
     session = AgentSession(
         stt=deepgram.STT(model="nova-3"),
         llm=google.LLM(
-            model="gemini-3.5-flash-lite",
+            model="gemini-2.0-flash",
         ),
         tts=murf.TTS(
             voice="Anisha",
@@ -168,10 +168,22 @@ async def my_agent(ctx: JobContext):
 
     await ctx.connect()
 
-    # Outbound call behavior: Agent initiates the conversation first before the user speaks
-    await session.generate_reply(
-        instructions="Greet the caller immediately with your mandatory outbound call opening. State who you are (Pooja from FreshMart Local Store), why you are calling (order confirmation and restock reminder), and how to opt out (say 'stop calling')."
+    # Look up stored caller profile to welcome them by name
+    user_profile = memory_db.get_user(user_id)
+    caller_name = user_profile.name if (user_profile and user_profile.name) else ""
+
+    # Outbound call initial greeting: Welcome caller by name + mandatory opening
+    greeting_prompt = (
+        f"Greet the caller by name '{caller_name}' warmly in Hindi/Hinglish. "
+        if caller_name
+        else "Greet the caller warmly in Hindi/Hinglish. "
     )
+    greeting_prompt += (
+        "Deliver your mandatory outbound opening: State who you are (Pooja from FreshMart Local Store), "
+        "why you are calling (order confirmation and restock reminder), and how to opt out (say 'stop calling')."
+    )
+
+    await session.generate_reply(instructions=greeting_prompt)
 
 
 if __name__ == "__main__":
