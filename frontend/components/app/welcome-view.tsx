@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import { ClockIcon } from '@phosphor-icons/react/dist/ssr';
 import { ChatHistoryDrawer } from '@/components/app/chat-history-drawer';
-import { TelephoneDialerModal } from '@/components/app/telephone-dialer-modal';
 import { Button } from '@/components/ui/button';
 import { PhoneCall } from 'lucide-react';
 
@@ -250,7 +249,6 @@ export const WelcomeView = ({
   ref,
 }: React.ComponentProps<'div'> & WelcomeViewProps) => {
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
-  const [isDialerOpen, setIsDialerOpen] = useState(false);
 
   return (
     <div ref={ref} className="relative">
@@ -377,7 +375,7 @@ export const WelcomeView = ({
             </Button>
 
             <button
-              onClick={() => setIsDialerOpen(true)}
+              onClick={onStartCall}
               className="relative mt-2 flex items-center justify-center gap-2 rounded-full border border-emerald-500/50 bg-emerald-950/60 px-6 py-3 font-mono text-xs font-bold tracking-wider text-emerald-400 uppercase shadow-[0_0_20px_rgba(16,185,129,0.2)] transition hover:border-emerald-400 hover:bg-emerald-500/20 hover:shadow-[0_0_30px_rgba(16,185,129,0.4)]"
             >
               <PhoneCall className="h-4 w-4 text-emerald-400" />
@@ -392,15 +390,6 @@ export const WelcomeView = ({
               <span>Previous Chats</span>
             </button>
           </div>
-
-          <TelephoneDialerModal
-            isOpen={isDialerOpen}
-            onClose={() => setIsDialerOpen(false)}
-            onStartCall={() => {
-              setIsDialerOpen(false);
-              onStartCall();
-            }}
-          />
 
           <ChatHistoryDrawer isOpen={isHistoryOpen} onClose={() => setIsHistoryOpen(false)} />
 
