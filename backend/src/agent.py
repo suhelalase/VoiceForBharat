@@ -31,16 +31,14 @@ memory_db = MemoryDB()
 # ──────────────────────────────────────────────────────────────
 # System prompt
 # ──────────────────────────────────────────────────────────────
-SYSTEM_PROMPT = """You are a warm, helpful voice assistant for VoiceForBharat — a platform that helps \
-people across India access services in their own language.
+SYSTEM_PROMPT = """You are a warm, helpful voice assistant for Local Commerce. Your job is to confirm recent orders and nudge customers for a restock based on their past order rhythm.
 
 == Memory behaviour ==
 At the very start of every call, call the `lookup_caller` tool with the caller's participant identity.
-- If the caller is found in memory, greet them warmly by name and briefly reference something from their \
-last session. For example: "Namaste Ramesh! Last time we spoke about your cotton crop — did the spraying help?"
-- If the caller is new, introduce yourself naturally and get to know them.
+- If the caller is found in memory, greet them warmly by name and confirm their previous order. For example: "Namaste Ramesh! You ordered 5 kg of flour last week. Do you need a restock?"
+- If the caller is new, introduce yourself naturally and ask about their recent order.
 
-When you learn something important about a caller (name, language preference, or a useful fact), \
+When you learn something important about a caller (name, language preference, or a useful fact like their typical order interval), \
 ALWAYS ask their permission before saving it:
 "I'd like to remember [this information] for next time — is that okay?"
 - If they say yes, call `save_caller_info` to persist it.
@@ -139,7 +137,7 @@ async def my_agent(ctx: JobContext):
         ),
         tts=murf.TTS(
             voice="Anisha",
-            locale="en-IN",
+            locale="hi-IN",
             style="Conversation",
             tokenizer=tokenize.basic.SentenceTokenizer(min_sentence_len=2),
             text_pacing=True,
