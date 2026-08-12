@@ -16,7 +16,9 @@ users
 
 import json
 import logging
+import re
 import sqlite3
+import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -25,6 +27,28 @@ logger = logging.getLogger("agent.database")
 
 # The DB file sits next to this module so it survives restarts.
 _DB_PATH = Path(__file__).parent.parent / "memory.db"
+
+
+def redact_pii(text: str) -> str:
+    """Remove private details like passwords, OTPs, PINs, card & account numbers."""
+    if not text:
+        return ""
+    # Redact explicit keyword pattern value matches: OTP/PIN/Password/Account/Card followed by numbers/tokens
+    redacted = re.sub(
+        r"(?i)\b(otp|pin|password|passcode|cvv|account\s*number|card\s*number)\s*(?:is|[:=])?\s*\w+",
+        r"\1: [REDACTED]",
+        text,
+    )
+    # Redact 13 to 19 digit account / credit card numbers
+    redacted = re.sub(r"\b\d{13,19}\b", "[REDACTED_ACCOUNT]", redacted)
+    # Redact standalone 4 to 6 digit codes/PINs/OTPs
+    redacted = re.sub(
+        r"\b(otp|pin)\s*(?:is|[:=])?\s*\d{4,6}\b",
+        r"\1: [REDACTED]",
+        redacted,
+        flags=re.IGNORECASE,
+    )
+    return redacted
 
 
 @dataclass
@@ -57,6 +81,38 @@ class UserMemory:
         return "\n".join(lines)
 
 
+@dataclass
+class EscalationRecord:
+    escalation_id: str
+    user_id: str
+    caller_name: str = ""
+    category: str = "general"
+    summary_what_happened: str = ""
+    summary_agent_checked: str = ""
+    urgency: str = "medium"  # low, medium, high, emergency
+    language: str = "Hindi"
+    followup_method: str = "phone"
+    status: str = "open"  # open, in_progress, resolved
+    created_at: str = ""
+    updated_at: str = ""
+
+    def to_dict(self) -> dict:
+        return {
+            "escalation_id": self.escalation_id,
+            "user_id": self.user_id,
+            "caller_name": self.caller_name,
+            "category": self.category,
+            "summary_what_happened": self.summary_what_happened,
+            "summary_agent_checked": self.summary_agent_checked,
+            "urgency": self.urgency,
+            "language": self.language,
+            "followup_method": self.followup_method,
+            "status": self.status,
+            "created_at": self.created_at,
+            "updated_at": self.updated_at,
+        }
+
+
 class MemoryDB:
     """Thin synchronous SQLite wrapper (sqlite3 is always available)."""
 
@@ -86,6 +142,24 @@ class MemoryDB:
                     title            TEXT    NOT NULL DEFAULT 'Voice Session',
                     messages         TEXT    NOT NULL DEFAULT '[]',
                     created_at       TEXT    NOT NULL DEFAULT ''
+                )
+                """
+            )
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS escalations (
+                    escalation_id         TEXT PRIMARY KEY,
+                    user_id               TEXT NOT NULL,
+                    caller_name           TEXT NOT NULL DEFAULT '',
+                    category              TEXT NOT NULL DEFAULT 'general',
+                    summary_what_happened TEXT NOT NULL DEFAULT '',
+                    summary_agent_checked TEXT NOT NULL DEFAULT '',
+                    urgency               TEXT NOT NULL DEFAULT 'medium',
+                    language              TEXT NOT NULL DEFAULT 'Hindi',
+                    followup_method       TEXT NOT NULL DEFAULT 'phone',
+                    status                TEXT NOT NULL DEFAULT 'open',
+                    created_at            TEXT NOT NULL DEFAULT '',
+                    updated_at            TEXT NOT NULL DEFAULT ''
                 )
                 """
             )
@@ -263,6 +337,194 @@ class MemoryDB:
             logger.exception("delete_chat_session failed for %s", session_id)
             return False
 
+    def create_or_update_escalation(
+        self,
+        user_id: str,
+        caller_name: str = "",
+        category: str = "general",
+        summary_what_happened: str = "",
+        summary_agent_checked: str = "",
+        urgency: str = "medium",
+        language: str = "Hindi",
+        followup_method: str = "phone",
+    ) -> EscalationRecord:
+        """
+        Create a new escalation record or update an existing open duplicate request.
+        Also redacts sensitive information (PII/OTPs/PINs/passwords).
+        """
+        try:
+            clean_happened = redact_pii(summary_what_happened)
+            clean_checked = redact_pii(summary_agent_checked)
+            now = datetime.now(timezone.utc).isoformat()
+
+            conn = sqlite3.connect(str(self._db_path))
+            conn.row_factory = sqlite3.Row
+
+            # Check if there is an existing open/in_progress escalation for this user and category (Deduplication)
+            existing = conn.execute(
+                """
+                SELECT * FROM escalations
+                WHERE user_id = ? AND category = ? AND status IN ('open', 'in_progress')
+                ORDER BY created_at DESC LIMIT 1
+                """,
+                (user_id, category),
+            ).fetchone()
+
+            if existing:
+                escalation_id = existing["escalation_id"]
+                conn.execute(
+                    """
+                    UPDATE escalations SET
+                        caller_name           = ?,
+                        summary_what_happened = ?,
+                        summary_agent_checked = ?,
+                        urgency               = ?,
+                        language              = ?,
+                        followup_method       = ?,
+                        updated_at            = ?
+                    WHERE escalation_id = ?
+                    """,
+                    (
+                        caller_name or existing["caller_name"],
+                        clean_happened or existing["summary_what_happened"],
+                        clean_checked or existing["summary_agent_checked"],
+                        urgency or existing["urgency"],
+                        language or existing["language"],
+                        followup_method or existing["followup_method"],
+                        now,
+                        escalation_id,
+                    ),
+                )
+                logger.info("Updated existing escalation duplicate %s", escalation_id)
+            else:
+                # Generate new reference ID e.g. ESC-1042
+                rand_num = uuid.uuid4().hex[:4].upper()
+                escalation_id = f"ESC-{rand_num}"
+                conn.execute(
+                    """
+                    INSERT INTO escalations (
+                        escalation_id, user_id, caller_name, category,
+                        summary_what_happened, summary_agent_checked,
+                        urgency, language, followup_method, status, created_at, updated_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'open', ?, ?)
+                    """,
+                    (
+                        escalation_id,
+                        user_id,
+                        caller_name,
+                        category,
+                        clean_happened,
+                        clean_checked,
+                        urgency,
+                        language,
+                        followup_method,
+                        now,
+                        now,
+                    ),
+                )
+                logger.info(
+                    "Created new escalation %s for user %s", escalation_id, user_id
+                )
+
+            conn.commit()
+            conn.close()
+
+            return EscalationRecord(
+                escalation_id=escalation_id,
+                user_id=user_id,
+                caller_name=caller_name,
+                category=category,
+                summary_what_happened=clean_happened,
+                summary_agent_checked=clean_checked,
+                urgency=urgency,
+                language=language,
+                followup_method=followup_method,
+                status=existing["status"] if existing else "open",
+                created_at=existing["created_at"] if existing else now,
+                updated_at=now,
+            )
+        except Exception:
+            logger.exception("create_or_update_escalation failed for %s", user_id)
+            return EscalationRecord(escalation_id="ESC-ERR", user_id=user_id)
+
+    def get_escalations(
+        self, user_id: str | None = None, status: str | None = None
+    ) -> list[dict]:
+        """Fetch escalation requests with optional filters."""
+        try:
+            conn = sqlite3.connect(str(self._db_path))
+            conn.row_factory = sqlite3.Row
+            query = "SELECT * FROM escalations WHERE 1=1"
+            params = []
+            if user_id:
+                query += " AND user_id = ?"
+                params.append(user_id)
+            if status:
+                query += " AND status = ?"
+                params.append(status)
+            query += " ORDER BY created_at DESC"
+
+            rows = conn.execute(query, params).fetchall()
+            conn.close()
+
+            results = []
+            for r in rows:
+                results.append(
+                    {
+                        "escalation_id": r["escalation_id"],
+                        "user_id": r["user_id"],
+                        "caller_name": r["caller_name"],
+                        "category": r["category"],
+                        "summary_what_happened": r["summary_what_happened"],
+                        "summary_agent_checked": r["summary_agent_checked"],
+                        "urgency": r["urgency"],
+                        "language": r["language"],
+                        "followup_method": r["followup_method"],
+                        "status": r["status"],
+                        "created_at": r["created_at"],
+                        "updated_at": r["updated_at"],
+                    }
+                )
+            return results
+        except Exception:
+            logger.exception("get_escalations failed")
+            return []
+
+    def update_escalation_status(self, escalation_id: str, status: str) -> dict | None:
+        """Update the status of an escalation (e.g. open -> in_progress / resolved)."""
+        try:
+            now = datetime.now(timezone.utc).isoformat()
+            conn = sqlite3.connect(str(self._db_path))
+            conn.row_factory = sqlite3.Row
+            conn.execute(
+                "UPDATE escalations SET status = ?, updated_at = ? WHERE escalation_id = ?",
+                (status, now, escalation_id),
+            )
+            conn.commit()
+            row = conn.execute(
+                "SELECT * FROM escalations WHERE escalation_id = ?", (escalation_id,)
+            ).fetchone()
+            conn.close()
+            if not row:
+                return None
+            return {
+                "escalation_id": row["escalation_id"],
+                "user_id": row["user_id"],
+                "caller_name": row["caller_name"],
+                "category": row["category"],
+                "summary_what_happened": row["summary_what_happened"],
+                "summary_agent_checked": row["summary_agent_checked"],
+                "urgency": row["urgency"],
+                "language": row["language"],
+                "followup_method": row["followup_method"],
+                "status": row["status"],
+                "created_at": row["created_at"],
+                "updated_at": row["updated_at"],
+            }
+        except Exception:
+            logger.exception("update_escalation_status failed for %s", escalation_id)
+            return None
+
 
 if __name__ == "__main__":
     import sys
@@ -289,3 +551,10 @@ if __name__ == "__main__":
         user_id = sys.argv[2] if len(sys.argv) > 2 else ""
         u = db.get_user(user_id) if user_id else None
         print(json.dumps(u.to_dict() if u else {}, ensure_ascii=False))
+    elif cmd == "escalations":
+        user_id = sys.argv[2] if len(sys.argv) > 2 and sys.argv[2] != "ALL" else None
+        print(json.dumps(db.get_escalations(user_id), ensure_ascii=False))
+    elif cmd == "resolve_escalation":
+        eid = sys.argv[2] if len(sys.argv) > 2 else ""
+        updated = db.update_escalation_status(eid, "resolved")
+        print(json.dumps(updated or {}, ensure_ascii=False))

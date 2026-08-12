@@ -1,5 +1,5 @@
-import { AccessToken } from 'livekit-server-sdk';
 import { NextRequest, NextResponse } from 'next/server';
+import { AccessToken } from 'livekit-server-sdk';
 
 export async function POST(req: NextRequest) {
   try {
@@ -10,10 +10,7 @@ export async function POST(req: NextRequest) {
     const livekitUrl = process.env.LIVEKIT_URL;
 
     if (!apiKey || !apiSecret || !livekitUrl) {
-      return NextResponse.json(
-        { error: 'Missing LiveKit environment variables' },
-        { status: 500 }
-      );
+      return NextResponse.json({ error: 'Missing LiveKit environment variables' }, { status: 500 });
     }
 
     const roomName = `outbound-${Date.now()}`;

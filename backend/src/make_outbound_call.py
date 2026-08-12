@@ -1,8 +1,13 @@
 import asyncio
 import os
 import sys
+
 from dotenv import load_dotenv
-from livekit.api import LiveKitAPI, CreateSIPParticipantRequest, CreateAgentDispatchRequest
+from livekit.api import (
+    CreateAgentDispatchRequest,
+    CreateSIPParticipantRequest,
+    LiveKitAPI,
+)
 
 load_dotenv(".env.local")
 
@@ -14,13 +19,15 @@ async def trigger_outbound_call(destination: str, name: str = "Valued Customer")
     agent_name = os.getenv("AGENT_NAME", "my-agent")
 
     if not url or not key or not secret:
-        print("Error: Missing LIVEKIT_URL, LIVEKIT_API_KEY, or LIVEKIT_API_SECRET in environment.")
+        print(
+            "Error: Missing LIVEKIT_URL, LIVEKIT_API_KEY, or LIVEKIT_API_SECRET in environment."
+        )
         return
 
     room_name = f"outbound-{destination.replace(':', '-').replace('@', '-')}"
     api = LiveKitAPI(url=url, api_key=key, api_secret=secret)
 
-    print(f"--- Triggering Outbound Call ---")
+    print("--- Triggering Outbound Call ---")
     print(f"Destination: {destination}")
     print(f"Customer Name: {name}")
     print(f"Target Room: {room_name}")
@@ -50,7 +57,9 @@ async def trigger_outbound_call(destination: str, name: str = "Valued Customer")
 
     except Exception as e:
         print(f"Note/Notice during outbound call setup: {e}")
-        print("If using Linphone/Twilio, ensure SIP Trunk is configured in LiveKit Cloud.")
+        print(
+            "If using Linphone/Twilio, ensure SIP Trunk is configured in LiveKit Cloud."
+        )
     finally:
         await api.close()
 

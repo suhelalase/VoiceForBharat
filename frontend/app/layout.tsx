@@ -103,7 +103,7 @@ export default async function RootLayout({ children }: RootLayoutProps) {
               </div>
               <div className="flex flex-col">
                 <span
-                  className="font-mono text-sm font-bold uppercase tracking-widest"
+                  className="font-mono text-sm font-bold tracking-widest uppercase"
                   style={{
                     color: '#00d4ff',
                     textShadow: '0 0 10px rgba(0,212,255,0.8), 0 0 20px rgba(0,212,255,0.4)',
@@ -112,7 +112,7 @@ export default async function RootLayout({ children }: RootLayoutProps) {
                   ZeroxAI
                 </span>
                 <span
-                  className="font-mono text-[9px] uppercase tracking-wider"
+                  className="font-mono text-[9px] tracking-wider uppercase"
                   style={{ color: 'rgba(0,212,255,0.5)' }}
                 >
                   Neural Voice Interface
@@ -127,14 +127,12 @@ export default async function RootLayout({ children }: RootLayoutProps) {
                 background: 'rgba(0,212,255,0.05)',
                 border: '1px solid rgba(0,212,255,0.15)',
               }}
-            >
-
-            </div>
+            ></div>
 
             {/* Right: Version tag */}
             <div className="flex items-center gap-2">
               <span
-                className="font-mono text-[10px] uppercase tracking-widest"
+                className="font-mono text-[10px] tracking-widest uppercase"
                 style={{ color: 'rgba(0,212,255,0.4)' }}
               >
                 v2.0 · AI Core Active

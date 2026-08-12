@@ -40,9 +40,35 @@ In the FIRST TWO SENTENCES of every session, you MUST state:
 3. How to make it stop / opt-out: "Agar aap yeh calls nahi chahte, toh bas 'stop calling' ya 'opt out' keh dein."
 
 == Memory behaviour ==
-At the very start of every call, call the `lookup_caller` tool with the caller's participant identity.
-- If the caller is found in memory, greet them warmly by name, state the mandatory opening, and confirm their previous order.
-- If the caller is new, deliver the mandatory opening and introduce the restock nudge.
+The caller's profile is already looked up before the conversation starts and provided in your initial greeting instructions. Use that context to personalise the call.
+Use `save_caller_info` to persist any new information the caller shares (name, preferences, opt-out requests, etc.).
+
+== Human Escalation & Help Policy (CRITICAL) ==
+You MUST know when to ask for human help. Human help is required when:
+- The caller has a payment problem, refund request, or order dispute (e.g. wrong charge, missing items, damaged goods, failed payment).
+- The caller explicitly requests to speak with a manager or human support team.
+- The caller is dissatisfied with your automated answers regarding billing/disputes.
+
+Step 1: ASK BEFORE SHARING (MANDATORY CONSENT)
+Before creating an escalation request, tell the caller what information you want to share with the support team (their name, issue summary, urgency, language, follow-up preference) and ASK FOR PERMISSION.
+Example: "Kya main aapki yeh refund issue details humare human support team ke saath share karke escalation ticket create kar doon?"
+- If the caller says NO or declines: Do NOT call `create_escalation`. Apologize and offer standard help.
+- If the caller says YES: Proceed to call `create_escalation` with `user_consent_given=True`.
+
+Step 2: REDACTION & SHORT SUMMARY
+Do NOT include passwords, OTPs, PINs, card details, or full account numbers in the summary. The tool will auto-redact sensitive data, but keep your summary short and focused on:
+- Who needs help
+- What happened
+- What you already checked
+- Urgency (low, medium, high, emergency)
+- Caller's language and preferred follow-up method (phone/email/whatsapp)
+
+Step 3: CLEAR NEXT STEP & REFERENCE ID
+After creating the escalation, speak the reference ID (e.g., ESC-1042) clearly to the caller. Give an honest expectation:
+"Aapka ticket reference ID है [ESC-XXXX]. Humari human support team ise verify karke jald se jald phone par contact karegi." Do NOT promise an instant response unless specifically configured.
+
+Step 4: CHECK STATUS
+If the caller asks about the status of a previous dispute or ticket, call `check_escalation_status`.
 
 == Opt-Out & Stop Calling Rule ==
 If the user requests to stop calling, opt out, or unsubscribes:
@@ -56,30 +82,12 @@ If the user requests to stop calling, opt out, or unsubscribes:
 
 
 # ──────────────────────────────────────────────────────────────
-# Assistant with memory tools
+# Assistant with memory and escalation tools
 # ──────────────────────────────────────────────────────────────
 class Assistant(Agent):
     def __init__(self, user_id: str = "default_user") -> None:
         super().__init__(instructions=SYSTEM_PROMPT)
         self._user_id = user_id
-
-    @function_tool
-    async def lookup_caller(self, context: RunContext) -> str:
-        """Look up the caller's stored profile at the start of the call.
-
-        Call this tool immediately at the beginning of every session to
-        check whether this person has spoken with us before. The result
-        tells you their name, language preference, and any saved facts
-        so you can greet them appropriately.
-        """
-        logger.info("Looking up caller: %s", self._user_id)
-        user = memory_db.get_user(self._user_id)
-        if user is None:
-            return "This is a new caller — no previous record found."
-        return (
-            f"Returning caller found:\n{user.summary()}\n\n"
-            "Greet them warmly by name and reference their previous session."
-        )
 
     @function_tool
     async def save_caller_info(
@@ -109,6 +117,89 @@ class Assistant(Agent):
         )
         return f"Saved successfully. Profile: {saved.to_dict()}"
 
+    @function_tool
+    async def create_escalation(
+        self,
+        context: RunContext,
+        category: str,
+        what_happened: str,
+        agent_checked: str,
+        urgency: str,
+        language: str,
+        followup_method: str,
+        user_consent_given: bool,
+        caller_name: str = "",
+    ) -> str:
+        """Create a human help escalation request when a payment, refund, or order dispute occurs.
+        MUST ONLY BE CALLED AFTER ASKING AND RECEIVING THE CALLER'S EXPLICIT PERMISSION.
+
+        Args:
+            category: Category of the dispute ("payment", "refund", "order_dispute", "manager_request").
+            what_happened: Short summary of the caller's issue (NO PINs/OTPs/Passwords/Card Numbers).
+            agent_checked: Short summary of what the agent already verified (e.g., "Verified order #1042 was delivered missing 2 items").
+            urgency: Priority level: "low", "medium", "high", or "emergency".
+            language: Preferred language of the caller (e.g., "Hindi", "English", "Hinglish").
+            followup_method: Preferred contact method: "phone", "email", or "whatsapp".
+            user_consent_given: Set to True ONLY if caller explicitly gave permission to create the ticket.
+            caller_name: Name of the caller (optional if known).
+        """
+        if not user_consent_given:
+            return "Escalation cancelled: User permission was not granted."
+
+        logger.info(
+            "Creating escalation for user=%s category=%s urgency=%s",
+            self._user_id,
+            category,
+            urgency,
+        )
+        record = memory_db.create_or_update_escalation(
+            user_id=self._user_id,
+            caller_name=caller_name,
+            category=category,
+            summary_what_happened=what_happened,
+            summary_agent_checked=agent_checked,
+            urgency=urgency,
+            language=language,
+            followup_method=followup_method,
+        )
+
+        return (
+            f"Escalation request saved. Ticket Reference ID: {record.escalation_id}. "
+            f"Status: {record.status}. Next step: Explain to the caller that reference ID is {record.escalation_id} "
+            "and human support will review and follow up."
+        )
+
+    @function_tool
+    async def check_escalation_status(
+        self,
+        context: RunContext,
+        escalation_id: str = "",
+    ) -> str:
+        """Check the status of open human help requests or disputes for the caller.
+
+        Args:
+            escalation_id: Reference ID (e.g. 'ESC-1042') if provided, or leave blank to check all open requests.
+        """
+        if escalation_id:
+            escalations = memory_db.get_escalations(status=None)
+            filtered = [
+                e
+                for e in escalations
+                if e["escalation_id"].upper() == escalation_id.upper()
+            ]
+        else:
+            filtered = memory_db.get_escalations(user_id=self._user_id)
+
+        if not filtered:
+            return "No matching escalation requests found for this caller."
+
+        summaries = []
+        for e in filtered:
+            summaries.append(
+                f"ID: {e['escalation_id']} | Category: {e['category']} | Status: {e['status']} | Urgency: {e['urgency']}"
+            )
+        return "Current Escalations:\n" + "\n".join(summaries)
+
 
 # ──────────────────────────────────────────────────────────────
 # LiveKit server setup
@@ -137,7 +228,7 @@ async def my_agent(ctx: JobContext):
     session = AgentSession(
         stt=deepgram.STT(model="nova-3"),
         llm=google.LLM(
-            model="gemini-2.0-flash",
+            model="gemini-2.5-flash",
         ),
         tts=murf.TTS(
             voice="Anisha",
@@ -148,7 +239,7 @@ async def my_agent(ctx: JobContext):
         ),
         turn_detection=MultilingualModel(),
         vad=ctx.proc.userdata["vad"],
-        preemptive_generation=True,
+        preemptive_generation=False,
     )
 
     await session.start(
@@ -168,20 +259,37 @@ async def my_agent(ctx: JobContext):
 
     await ctx.connect()
 
-    # Look up stored caller profile to welcome them by name
+    # Look up stored caller profile to welcome them by name and recall facts/escalations (Connect & Be Remembered)
     user_profile = memory_db.get_user(user_id)
     caller_name = user_profile.name if (user_profile and user_profile.name) else ""
 
-    # Outbound call initial greeting: Welcome caller by name + mandatory opening
+    # Look up any open/in_progress escalation tickets for this caller
+    open_escalations = memory_db.get_escalations(user_id=user_id, status="open")
+    escalation_context = ""
+    if open_escalations:
+        latest = open_escalations[0]
+        escalation_context = (
+            f" [MEMORY UPDATE: Caller has an OPEN escalation ticket {latest['escalation_id']} "
+            f"regarding '{latest['category']}' with status '{latest['status']}'. "
+            f"Acknowledge that you remember their open dispute ticket.]"
+        )
+
+    # Outbound call initial greeting: Welcome caller by name + mandatory opening + remembered memory context
     greeting_prompt = (
-        f"Greet the caller by name '{caller_name}' warmly in Hindi/Hinglish. "
+        f"Greet the caller by name '{caller_name}' warmly in Hindi/Hinglish."
         if caller_name
-        else "Greet the caller warmly in Hindi/Hinglish. "
+        else "Greet the caller warmly in Hindi/Hinglish."
     )
     greeting_prompt += (
-        "Deliver your mandatory outbound opening: State who you are (Pooja from FreshMart Local Store), "
+        " Deliver your mandatory outbound opening: State who you are (Pooja from FreshMart Local Store), "
         "why you are calling (order confirmation and restock reminder), and how to opt out (say 'stop calling')."
     )
+    if user_profile and user_profile.facts:
+        greeting_prompt += (
+            f" Remembered facts about this customer: {user_profile.facts}."
+        )
+    if escalation_context:
+        greeting_prompt += escalation_context
 
     await session.generate_reply(instructions=greeting_prompt)
 

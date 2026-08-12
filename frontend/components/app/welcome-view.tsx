@@ -1,10 +1,11 @@
 'use client';
 
 import { useState } from 'react';
+import { PhoneCall, ShieldAlert } from 'lucide-react';
 import { ClockIcon } from '@phosphor-icons/react/dist/ssr';
 import { ChatHistoryDrawer } from '@/components/app/chat-history-drawer';
+import { EscalationsDrawer } from '@/components/app/escalations-drawer';
 import { Button } from '@/components/ui/button';
-import { PhoneCall } from 'lucide-react';
 
 // Animated rotating ring SVG
 function JarvisRings() {
@@ -249,6 +250,7 @@ export const WelcomeView = ({
   ref,
 }: React.ComponentProps<'div'> & WelcomeViewProps) => {
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [isEscalationsOpen, setIsEscalationsOpen] = useState(false);
 
   return (
     <div ref={ref} className="relative">
@@ -389,9 +391,21 @@ export const WelcomeView = ({
               <ClockIcon className="h-4 w-4" weight="bold" />
               <span>Previous Chats</span>
             </button>
+
+            <button
+              onClick={() => setIsEscalationsOpen(true)}
+              className="relative mt-2 flex items-center justify-center gap-2 rounded-full border border-red-500/40 bg-red-950/60 px-6 py-3 font-mono text-xs font-bold tracking-wider text-red-400 uppercase shadow-[0_0_15px_rgba(239,68,68,0.15)] transition hover:border-red-400 hover:bg-red-500/20 hover:shadow-[0_0_25px_rgba(239,68,68,0.3)]"
+            >
+              <ShieldAlert className="h-4 w-4 text-red-400" />
+              <span>Human Escalations</span>
+            </button>
           </div>
 
           <ChatHistoryDrawer isOpen={isHistoryOpen} onClose={() => setIsHistoryOpen(false)} />
+          <EscalationsDrawer
+            isOpen={isEscalationsOpen}
+            onClose={() => setIsEscalationsOpen(false)}
+          />
 
           {/* Bottom HUD indicators */}
           <div className="flex flex-wrap items-center justify-center gap-6 pt-2">
