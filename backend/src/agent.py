@@ -200,6 +200,38 @@ class Assistant(Agent):
             )
         return "Current Escalations:\n" + "\n".join(summaries)
 
+    @function_tool
+    async def record_call_outcome(
+        self,
+        context: RunContext,
+        outcome: str,
+        reason_summary: str = "",
+    ) -> str:
+        """Record whether the current call reached a successful outcome or failed.
+
+        Call outcome definition for Local Commerce (FreshMart Grocery):
+        - 'successful': The caller found a product, completed an enquiry, placed/replenished an order, or resolved an order query smoothly.
+        - 'failed': The caller hung up early, refused to complete an enquiry, explicitly opted out, or had an unhandled dispute.
+
+        Args:
+            outcome: 'successful' or 'failed'
+            reason_summary: Short 1-sentence explanation of why the call was marked successful or failed.
+        """
+        call_id = f"CALL-{self._user_id}"
+        rec = memory_db.record_call_outcome(
+            call_id=call_id,
+            user_id=self._user_id,
+            status=outcome,
+            summary=reason_summary,
+        )
+        logger.info(
+            "Call outcome logged for %s: outcome=%s, summary=%s",
+            self._user_id,
+            outcome,
+            reason_summary,
+        )
+        return f"Call outcome recorded as '{rec.status}'. Analytics updated."
+
 
 # ──────────────────────────────────────────────────────────────
 # LiveKit server setup
@@ -224,6 +256,12 @@ async def my_agent(ctx: JobContext):
     # Derive a stable user_id from the room name (or participant identity when available)
     # The room name is consistent across reconnects for the same user session.
     user_id = ctx.room.name
+    user_profile = memory_db.get_user(user_id)
+    caller_name = user_profile.name if (user_profile and user_profile.name) else ""
+
+    # Record call start in call_analytics table
+    call_id = f"CALL-{user_id}"
+    memory_db.record_call_start(call_id=call_id, user_id=user_id, caller_name=caller_name)
 
     session = AgentSession(
         stt=deepgram.STT(model="nova-3"),

@@ -113,6 +113,30 @@ class EscalationRecord:
         }
 
 
+@dataclass
+class CallRecord:
+    call_id: str
+    user_id: str
+    caller_name: str = ""
+    status: str = "in_progress"  # successful, failed, in_progress
+    summary: str = ""
+    duration_seconds: int = 0
+    created_at: str = ""
+    updated_at: str = ""
+
+    def to_dict(self) -> dict:
+        return {
+            "call_id": self.call_id,
+            "user_id": self.user_id,
+            "caller_name": self.caller_name,
+            "status": self.status,
+            "summary": self.summary,
+            "duration_seconds": self.duration_seconds,
+            "created_at": self.created_at,
+            "updated_at": self.updated_at,
+        }
+
+
 class MemoryDB:
     """Thin synchronous SQLite wrapper (sqlite3 is always available)."""
 
@@ -158,6 +182,20 @@ class MemoryDB:
                     language              TEXT NOT NULL DEFAULT 'Hindi',
                     followup_method       TEXT NOT NULL DEFAULT 'phone',
                     status                TEXT NOT NULL DEFAULT 'open',
+                    created_at            TEXT NOT NULL DEFAULT '',
+                    updated_at            TEXT NOT NULL DEFAULT ''
+                )
+                """
+            )
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS call_analytics (
+                    call_id               TEXT PRIMARY KEY,
+                    user_id               TEXT NOT NULL,
+                    caller_name           TEXT NOT NULL DEFAULT '',
+                    status                TEXT NOT NULL DEFAULT 'in_progress',
+                    summary               TEXT NOT NULL DEFAULT '',
+                    duration_seconds      INTEGER NOT NULL DEFAULT 0,
                     created_at            TEXT NOT NULL DEFAULT '',
                     updated_at            TEXT NOT NULL DEFAULT ''
                 )
@@ -525,6 +563,160 @@ class MemoryDB:
             logger.exception("update_escalation_status failed for %s", escalation_id)
             return None
 
+    def record_call_start(self, call_id: str, user_id: str, caller_name: str = "") -> CallRecord:
+        """Record the initiation of a call."""
+        try:
+            now = datetime.now(timezone.utc).isoformat()
+            conn = sqlite3.connect(str(self._db_path))
+            conn.execute(
+                """
+                INSERT INTO call_analytics (call_id, user_id, caller_name, status, summary, duration_seconds, created_at, updated_at)
+                VALUES (?, ?, ?, 'in_progress', '', 0, ?, ?)
+                ON CONFLICT(call_id) DO UPDATE SET
+                    caller_name = excluded.caller_name,
+                    updated_at  = excluded.updated_at
+                """,
+                (call_id, user_id, caller_name, now, now),
+            )
+            conn.commit()
+            conn.close()
+            return CallRecord(
+                call_id=call_id,
+                user_id=user_id,
+                caller_name=caller_name,
+                status="in_progress",
+                created_at=now,
+                updated_at=now,
+            )
+        except Exception:
+            logger.exception("record_call_start failed for %s", call_id)
+            return CallRecord(call_id=call_id, user_id=user_id)
+
+    def record_call_outcome(
+        self,
+        call_id: str,
+        user_id: str = "",
+        status: str = "successful",
+        summary: str = "",
+        duration_seconds: int = 0,
+    ) -> CallRecord:
+        """Record the outcome of a call (successful vs failed)."""
+        try:
+            now = datetime.now(timezone.utc).isoformat()
+            status_clean = "successful" if status.lower() in ("successful", "success") else "failed"
+            conn = sqlite3.connect(str(self._db_path))
+            conn.row_factory = sqlite3.Row
+
+            existing = conn.execute(
+                "SELECT * FROM call_analytics WHERE call_id = ?", (call_id,)
+            ).fetchone()
+
+            if existing:
+                conn.execute(
+                    """
+                    UPDATE call_analytics SET
+                        status           = ?,
+                        summary          = ?,
+                        duration_seconds = ?,
+                        updated_at       = ?
+                    WHERE call_id = ?
+                    """,
+                    (status_clean, summary, duration_seconds, now, call_id),
+                )
+                user_id_val = existing["user_id"]
+                caller_name_val = existing["caller_name"]
+                created_at_val = existing["created_at"]
+            else:
+                user_id_val = user_id or "default_user"
+                caller_name_val = ""
+                created_at_val = now
+                conn.execute(
+                    """
+                    INSERT INTO call_analytics (call_id, user_id, caller_name, status, summary, duration_seconds, created_at, updated_at)
+                    VALUES (?, ?, '', ?, ?, ?, ?, ?)
+                    """,
+                    (call_id, user_id_val, status_clean, summary, duration_seconds, now, now),
+                )
+
+            conn.commit()
+            conn.close()
+            logger.info("Recorded call outcome for %s -> %s", call_id, status_clean)
+
+            return CallRecord(
+                call_id=call_id,
+                user_id=user_id_val,
+                caller_name=caller_name_val,
+                status=status_clean,
+                summary=summary,
+                duration_seconds=duration_seconds,
+                created_at=created_at_val,
+                updated_at=now,
+            )
+        except Exception:
+            logger.exception("record_call_outcome failed for %s", call_id)
+            return CallRecord(call_id=call_id, user_id=user_id, status=status)
+
+    def get_call_analytics(self) -> dict:
+        """Fetch summary stats: total_calls, successful_calls, failed_calls, success_rate, and recent calls list."""
+        try:
+            conn = sqlite3.connect(str(self._db_path))
+            conn.row_factory = sqlite3.Row
+
+            total = conn.execute("SELECT COUNT(*) as cnt FROM call_analytics").fetchone()["cnt"]
+            successful = conn.execute(
+                "SELECT COUNT(*) as cnt FROM call_analytics WHERE status = 'successful'"
+            ).fetchone()["cnt"]
+            failed = conn.execute(
+                "SELECT COUNT(*) as cnt FROM call_analytics WHERE status = 'failed'"
+            ).fetchone()["cnt"]
+            in_progress = conn.execute(
+                "SELECT COUNT(*) as cnt FROM call_analytics WHERE status = 'in_progress'"
+            ).fetchone()["cnt"]
+
+            rows = conn.execute(
+                "SELECT * FROM call_analytics ORDER BY created_at DESC LIMIT 50"
+            ).fetchall()
+            conn.close()
+
+            recent = []
+            for r in rows:
+                recent.append(
+                    {
+                        "call_id": r["call_id"],
+                        "user_id": r["user_id"],
+                        "caller_name": r["caller_name"],
+                        "status": r["status"],
+                        "summary": r["summary"],
+                        "duration_seconds": r["duration_seconds"],
+                        "created_at": r["created_at"],
+                        "updated_at": r["updated_at"],
+                    }
+                )
+
+            total_finished = successful + failed
+            success_rate = (
+                round((successful / total_finished) * 100, 1) if total_finished > 0 else 0.0
+            )
+
+            return {
+                "total_calls": total,
+                "successful_calls": successful,
+                "failed_calls": failed,
+                "in_progress_calls": in_progress,
+                "success_rate": success_rate,
+                "recent_calls": recent,
+            }
+        except Exception:
+            logger.exception("get_call_analytics failed")
+            return {
+                "total_calls": 0,
+                "successful_calls": 0,
+                "failed_calls": 0,
+                "in_progress_calls": 0,
+                "success_rate": 0.0,
+                "recent_calls": [],
+            }
+
 
 if __name__ == "__main__":
     import sys
@@ -558,3 +750,15 @@ if __name__ == "__main__":
         eid = sys.argv[2] if len(sys.argv) > 2 else ""
         updated = db.update_escalation_status(eid, "resolved")
         print(json.dumps(updated or {}, ensure_ascii=False))
+    elif cmd == "analytics":
+        print(json.dumps(db.get_call_analytics(), ensure_ascii=False))
+    elif cmd == "record_outcome":
+        payload = json.loads(sys.stdin.read())
+        rec = db.record_call_outcome(
+            call_id=payload.get("call_id", ""),
+            user_id=payload.get("user_id", ""),
+            status=payload.get("status", "successful"),
+            summary=payload.get("summary", ""),
+            duration_seconds=payload.get("duration_seconds", 0),
+        )
+        print(json.dumps(rec.to_dict(), ensure_ascii=False))

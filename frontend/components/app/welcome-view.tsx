@@ -1,8 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { PhoneCall, ShieldAlert } from 'lucide-react';
+import { BarChart3, PhoneCall, ShieldAlert } from 'lucide-react';
 import { ClockIcon } from '@phosphor-icons/react/dist/ssr';
+import { AnalyticsDrawer } from '@/components/app/analytics-drawer';
 import { ChatHistoryDrawer } from '@/components/app/chat-history-drawer';
 import { EscalationsDrawer } from '@/components/app/escalations-drawer';
 import { Button } from '@/components/ui/button';
@@ -251,6 +252,7 @@ export const WelcomeView = ({
 }: React.ComponentProps<'div'> & WelcomeViewProps) => {
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isEscalationsOpen, setIsEscalationsOpen] = useState(false);
+  const [isAnalyticsOpen, setIsAnalyticsOpen] = useState(false);
 
   return (
     <div ref={ref} className="relative">
@@ -385,6 +387,14 @@ export const WelcomeView = ({
             </button>
 
             <button
+              onClick={() => setIsAnalyticsOpen(true)}
+              className="relative mt-2 flex items-center justify-center gap-2 rounded-full border border-cyan-400/50 bg-cyan-950/60 px-6 py-3 font-mono text-xs font-bold tracking-wider text-cyan-300 uppercase shadow-[0_0_15px_rgba(0,212,255,0.2)] transition hover:border-cyan-300 hover:bg-cyan-500/20 hover:shadow-[0_0_25px_rgba(0,212,255,0.4)]"
+            >
+              <BarChart3 className="h-4 w-4 text-cyan-300" />
+              <span>Call Analytics</span>
+            </button>
+
+            <button
               onClick={() => setIsHistoryOpen(true)}
               className="relative mt-2 flex items-center justify-center gap-2 rounded-full border border-[rgba(0,212,255,0.4)] bg-[#071220]/80 px-6 py-3 font-mono text-xs font-bold tracking-wider text-[#00d4ff] uppercase shadow-[0_0_15px_rgba(0,212,255,0.15)] transition hover:border-[#00d4ff] hover:bg-[#00d4ff]/15 hover:shadow-[0_0_25px_rgba(0,212,255,0.3)]"
             >
@@ -401,6 +411,7 @@ export const WelcomeView = ({
             </button>
           </div>
 
+          <AnalyticsDrawer isOpen={isAnalyticsOpen} onClose={() => setIsAnalyticsOpen(false)} />
           <ChatHistoryDrawer isOpen={isHistoryOpen} onClose={() => setIsHistoryOpen(false)} />
           <EscalationsDrawer
             isOpen={isEscalationsOpen}
