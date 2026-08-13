@@ -142,13 +142,13 @@ export function AnalyticsDrawer({ isOpen, onClose }: AnalyticsDrawerProps) {
             </div>
 
             {/* Content Body */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-6">
+            <div className="flex-1 space-y-6 overflow-y-auto p-6">
               {/* Top Summary Cards Grid */}
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 {/* Total Calls */}
                 <div className="relative overflow-hidden rounded-xl border border-cyan-500/30 bg-[#08192d]/80 p-4 shadow-[0_0_20px_rgba(0,212,255,0.08)]">
                   <div className="flex items-center justify-between">
-                    <span className="font-mono text-xs font-semibold uppercase text-cyan-400/80">
+                    <span className="font-mono text-xs font-semibold text-cyan-400/80 uppercase">
                       Total Calls
                     </span>
                     <PhoneCall className="h-4 w-4 text-cyan-400" />
@@ -164,7 +164,7 @@ export function AnalyticsDrawer({ isOpen, onClose }: AnalyticsDrawerProps) {
                 {/* Successful Calls */}
                 <div className="relative overflow-hidden rounded-xl border border-emerald-500/30 bg-emerald-950/20 p-4 shadow-[0_0_20px_rgba(16,185,129,0.08)]">
                   <div className="flex items-center justify-between">
-                    <span className="font-mono text-xs font-semibold uppercase text-emerald-400/80">
+                    <span className="font-mono text-xs font-semibold text-emerald-400/80 uppercase">
                       Successful Calls
                     </span>
                     <CheckCircle2 className="h-4 w-4 text-emerald-400" />
@@ -182,7 +182,7 @@ export function AnalyticsDrawer({ isOpen, onClose }: AnalyticsDrawerProps) {
                 {/* Failed Calls */}
                 <div className="relative overflow-hidden rounded-xl border border-rose-500/30 bg-rose-950/20 p-4 shadow-[0_0_20px_rgba(244,63,94,0.08)]">
                   <div className="flex items-center justify-between">
-                    <span className="font-mono text-xs font-semibold uppercase text-rose-400/80">
+                    <span className="font-mono text-xs font-semibold text-rose-400/80 uppercase">
                       Failed Calls
                     </span>
                     <XCircle className="h-4 w-4 text-rose-400" />
@@ -200,7 +200,7 @@ export function AnalyticsDrawer({ isOpen, onClose }: AnalyticsDrawerProps) {
                 {/* Success Rate */}
                 <div className="relative overflow-hidden rounded-xl border border-purple-500/30 bg-purple-950/20 p-4 shadow-[0_0_20px_rgba(168,85,247,0.08)]">
                   <div className="flex items-center justify-between">
-                    <span className="font-mono text-xs font-semibold uppercase text-purple-400/80">
+                    <span className="font-mono text-xs font-semibold text-purple-400/80 uppercase">
                       Success Rate
                     </span>
                     <TrendingUp className="h-4 w-4 text-purple-400" />
@@ -209,27 +209,33 @@ export function AnalyticsDrawer({ isOpen, onClose }: AnalyticsDrawerProps) {
                     <span className="font-mono text-3xl font-extrabold text-purple-300">
                       {data.success_rate}%
                     </span>
-                    <span className="font-mono text-[10px] text-purple-400/60">Target &gt; 80%</span>
+                    <span className="font-mono text-[10px] text-purple-400/60">
+                      Target &gt; 80%
+                    </span>
                   </div>
                 </div>
               </div>
 
               {/* Day 8 Definition Box */}
               <div className="rounded-xl border border-cyan-500/20 bg-cyan-950/20 p-4">
-                <div className="flex items-center gap-2 mb-2">
+                <div className="mb-2 flex items-center gap-2">
                   <ShoppingBag className="h-4 w-4 text-cyan-400" />
                   <h3 className="font-mono text-xs font-bold text-cyan-300 uppercase">
                     Local Commerce Success Definition
                   </h3>
                 </div>
-                <p className="font-mono text-xs text-cyan-400/70 leading-relaxed">
-                  A call is recorded as <strong className="text-emerald-400">Successful</strong> when the caller finds a product, completes a restock enquiry, or gets an order status without dispute. A call is recorded as <strong className="text-rose-400">Failed</strong> if the call drops before completion, explicit opt-out occurs, or an unresolved dispute arises.
+                <p className="font-mono text-xs leading-relaxed text-cyan-400/70">
+                  A call is recorded as <strong className="text-emerald-400">Successful</strong>{' '}
+                  when the caller finds a product, completes a restock enquiry, or gets an order
+                  status without dispute. A call is recorded as{' '}
+                  <strong className="text-rose-400">Failed</strong> if the call drops before
+                  completion, explicit opt-out occurs, or an unresolved dispute arises.
                 </p>
               </div>
 
               {/* Recent Call Records List */}
               <div className="space-y-3">
-                <h3 className="font-mono text-xs font-bold uppercase tracking-wider text-cyan-400">
+                <h3 className="font-mono text-xs font-bold tracking-wider text-cyan-400 uppercase">
                   Recent Call Logs ({data.recent_calls.length})
                 </h3>
 
@@ -237,7 +243,8 @@ export function AnalyticsDrawer({ isOpen, onClose }: AnalyticsDrawerProps) {
                   <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-cyan-500/20 py-12 text-center">
                     <PhoneCall className="h-8 w-8 text-cyan-500/40" />
                     <p className="mt-3 font-mono text-xs text-cyan-400/60">
-                      No call records logged yet. Start a call with Pooja to generate real telemetry data!
+                      No call records logged yet. Start a call with Pooja to generate real telemetry
+                      data!
                     </p>
                   </div>
                 ) : (

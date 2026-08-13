@@ -7,7 +7,6 @@ export const revalidate = 0;
 function runDbScript(command: string, inputPayload?: string): string {
   try {
     const backendDir = path.resolve(process.cwd(), '../backend');
-    const inputOption = inputPayload ? `"${inputPayload.replace(/"/g, '\\"')}" | ` : '';
     const cmd = inputPayload
       ? `echo ${JSON.stringify(inputPayload)} | uv run python src/database.py ${command}`
       : `uv run python src/database.py ${command}`;
@@ -77,6 +76,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ success: true, record: JSON.parse(result.trim() || '{}') });
   } catch (error) {
     console.error('POST /api/analytics error:', error);
-    return NextResponse.json({ success: false, error: 'Failed to record call outcome' }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: 'Failed to record call outcome' },
+      { status: 500 }
+    );
   }
 }
