@@ -29,7 +29,7 @@ load_dotenv(".env.local")
 memory_db = MemoryDB()
 
 # ──────────────────────────────────────────────────────────────
-# System prompt
+# System prompts
 # ──────────────────────────────────────────────────────────────
 SYSTEM_PROMPT = """You are Pooja, a warm and professional outbound voice assistant for Local Commerce (FreshMart Grocery). Your job is to confirm recent orders and nudge customers for a restock based on their past order rhythm.
 
@@ -39,33 +39,36 @@ In the FIRST TWO SENTENCES of every session, you MUST state:
 2. Why you are calling: "Aapke pichhle grocery order confirmation aur restock reminder ke silsile mein phone kiya hai."
 3. How to make it stop / opt-out: "Agar aap yeh calls nahi chahte, toh bas 'stop calling' ya 'opt out' keh dein."
 
+== Specialist Handoff Policy (CRITICAL) ==
+You are the primary assistant for general order confirmation, restock, and general queries.
+However, when a user asks about:
+- Returning an item, defective/damaged goods, wrong items received, or requesting a refund/exchange.
+You MUST hand off the conversation to the Returns and Refunds Specialist.
+
+Step 1: Announce handoff clearly to user BEFORE switching:
+Tell the caller in simple words: "Main aapko humare Returns and Refunds Specialist se connect kar rahi hoon." (or in English: "I will connect you to our Returns and Refunds Specialist.")
+Step 2: Execute the `transfer_to_returns_specialist` tool immediately.
+
 == Memory behaviour ==
 The caller's profile is already looked up before the conversation starts and provided in your initial greeting instructions. Use that context to personalise the call.
 Use `save_caller_info` to persist any new information the caller shares (name, preferences, opt-out requests, etc.).
 
 == Human Escalation & Help Policy (CRITICAL) ==
 You MUST know when to ask for human help. Human help is required when:
-- The caller has a payment problem, refund request, or order dispute (e.g. wrong charge, missing items, damaged goods, failed payment).
 - The caller explicitly requests to speak with a manager or human support team.
-- The caller is dissatisfied with your automated answers regarding billing/disputes.
+- The caller is dissatisfied after talking with specialists or has complex account disputes.
 
 Step 1: ASK BEFORE SHARING (MANDATORY CONSENT)
 Before creating an escalation request, tell the caller what information you want to share with the support team (their name, issue summary, urgency, language, follow-up preference) and ASK FOR PERMISSION.
-Example: "Kya main aapki yeh refund issue details humare human support team ke saath share karke escalation ticket create kar doon?"
+Example: "Kya main aapki yeh issue details humare human support team ke saath share karke escalation ticket create kar doon?"
 - If the caller says NO or declines: Do NOT call `create_escalation`. Apologize and offer standard help.
 - If the caller says YES: Proceed to call `create_escalation` with `user_consent_given=True`.
 
 Step 2: REDACTION & SHORT SUMMARY
-Do NOT include passwords, OTPs, PINs, card details, or full account numbers in the summary. The tool will auto-redact sensitive data, but keep your summary short and focused on:
-- Who needs help
-- What happened
-- What you already checked
-- Urgency (low, medium, high, emergency)
-- Caller's language and preferred follow-up method (phone/email/whatsapp)
+Do NOT include passwords, OTPs, PINs, card details, or full account numbers in the summary. Keep your summary short and focused.
 
 Step 3: CLEAR NEXT STEP & REFERENCE ID
-After creating the escalation, speak the reference ID (e.g., ESC-1042) clearly to the caller. Give an honest expectation:
-"Aapka ticket reference ID है [ESC-XXXX]. Humari human support team ise verify karke jald se jald phone par contact karegi." Do NOT promise an instant response unless specifically configured.
+After creating the escalation, speak the reference ID (e.g., ESC-1042) clearly to the caller.
 
 Step 4: CHECK STATUS
 If the caller asks about the status of a previous dispute or ticket, call `check_escalation_status`.
@@ -77,17 +80,94 @@ If the user requests to stop calling, opt out, or unsubscribes:
 == Conversation style ==
 - Be concise and conversational — no bullet points, markdown, or emojis in your spoken responses.
 - Support code-switching between Hindi and English naturally (Hinglish/Hindi).
-- Keep responses short — this is a voice call, not a chat window.
-- If you don't know something, say so honestly."""
+- Keep responses short — this is a voice call, not a chat window."""
+
+RETURNS_SPECIALIST_PROMPT = """You are Rohan, the dedicated Returns and Refunds Specialist for FreshMart Local Store.
+Your ONLY role is handling product returns, replacement requests, damaged/defective item complaints, and processing refunds.
+
+== Introduction Policy ==
+When taking over a conversation, introduce yourself immediately:
+"Namaste! Main Rohan hoon, FreshMart ka Returns and Refunds Specialist. Mujhe bataya gaya hai ki aapko item return ya refund ki zaroorat hai. Main aapki poori madad karunga."
+
+== Instructions & Limits ==
+1. Only answer queries about returns, refunds, replacement items, damaged items, and refund status.
+2. If the user asks about general grocery restock or new orders, offer to complete their return query first.
+3. Use `process_return_and_refund` tool to process eligible returns.
+4. Keep spoken responses short, clear, warm, and in natural Hindi/Hinglish or English. No markdown, emojis, or bullet points in voice responses."""
 
 
 # ──────────────────────────────────────────────────────────────
-# Assistant with memory and escalation tools
+# Specialist Agent: Returns and Refunds Specialist
+# ──────────────────────────────────────────────────────────────
+class ReturnsAndRefundsSpecialist(Agent):
+    def __init__(self, user_id: str = "default_user", initial_reason: str = "") -> None:
+        super().__init__(instructions=RETURNS_SPECIALIST_PROMPT)
+        self._user_id = user_id
+        self._initial_reason = initial_reason
+
+    @function_tool
+    async def process_return_and_refund(
+        self,
+        context: RunContext,
+        item_name: str,
+        reason: str,
+        refund_type: str = "store_credit",
+    ) -> str:
+        """Process a return request for a damaged, defective, or incorrect grocery item.
+
+        Args:
+            item_name: Name of the item to be returned (e.g. "Amul Milk 1L", "Tomatoes 1kg").
+            reason: Reason for return (e.g. "expired", "damaged packaging", "wrong item").
+            refund_type: Preferred refund method ("store_credit" or "original_payment_method").
+        """
+        logger.info(
+            "Processing return for user=%s item=%s reason=%s method=%s",
+            self._user_id,
+            item_name,
+            reason,
+            refund_type,
+        )
+        return (
+            f"Return request approved for '{item_name}' due to '{reason}'. "
+            f"Refund amount of 100% processed via {refund_type}. Return Ticket ID: RET-{self._user_id[:4].upper()}-99"
+        )
+
+
+# ──────────────────────────────────────────────────────────────
+# Primary Assistant with memory, handoff, and escalation tools
 # ──────────────────────────────────────────────────────────────
 class Assistant(Agent):
     def __init__(self, user_id: str = "default_user") -> None:
         super().__init__(instructions=SYSTEM_PROMPT)
         self._user_id = user_id
+
+    @function_tool
+    async def transfer_to_returns_specialist(
+        self,
+        context: RunContext,
+        reason: str,
+    ) -> str:
+        """Transfer the call/conversation to the Returns and Refunds Specialist agent.
+
+        Use this tool IMMEDIATELY when the customer mentions returning an item, requesting a refund,
+        complaining about damaged/expired goods, or asking for an order exchange.
+
+        Args:
+            reason: Specific reason for transferring to the returns specialist (e.g., "Customer received expired milk and wants a refund").
+        """
+        logger.info(
+            "Handoff triggered for user=%s to Returns Specialist. Reason: %s",
+            self._user_id,
+            reason,
+        )
+        specialist = ReturnsAndRefundsSpecialist(
+            user_id=self._user_id, initial_reason=reason
+        )
+        await context.session.update_agent(specialist)
+        return (
+            f"Handoff completed successfully to Returns & Refunds Specialist (Rohan). "
+            f"Reason passed: '{reason}'. Specialist is now active."
+        )
 
     @function_tool
     async def save_caller_info(
@@ -261,7 +341,9 @@ async def my_agent(ctx: JobContext):
 
     # Record call start in call_analytics table
     call_id = f"CALL-{user_id}"
-    memory_db.record_call_start(call_id=call_id, user_id=user_id, caller_name=caller_name)
+    memory_db.record_call_start(
+        call_id=call_id, user_id=user_id, caller_name=caller_name
+    )
 
     session = AgentSession(
         stt=deepgram.STT(model="nova-3"),

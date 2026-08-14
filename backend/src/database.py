@@ -563,7 +563,9 @@ class MemoryDB:
             logger.exception("update_escalation_status failed for %s", escalation_id)
             return None
 
-    def record_call_start(self, call_id: str, user_id: str, caller_name: str = "") -> CallRecord:
+    def record_call_start(
+        self, call_id: str, user_id: str, caller_name: str = ""
+    ) -> CallRecord:
         """Record the initiation of a call."""
         try:
             now = datetime.now(timezone.utc).isoformat()
@@ -603,7 +605,11 @@ class MemoryDB:
         """Record the outcome of a call (successful vs failed)."""
         try:
             now = datetime.now(timezone.utc).isoformat()
-            status_clean = "successful" if status.lower() in ("successful", "success") else "failed"
+            status_clean = (
+                "successful"
+                if status.lower() in ("successful", "success")
+                else "failed"
+            )
             conn = sqlite3.connect(str(self._db_path))
             conn.row_factory = sqlite3.Row
 
@@ -635,7 +641,15 @@ class MemoryDB:
                     INSERT INTO call_analytics (call_id, user_id, caller_name, status, summary, duration_seconds, created_at, updated_at)
                     VALUES (?, ?, '', ?, ?, ?, ?, ?)
                     """,
-                    (call_id, user_id_val, status_clean, summary, duration_seconds, now, now),
+                    (
+                        call_id,
+                        user_id_val,
+                        status_clean,
+                        summary,
+                        duration_seconds,
+                        now,
+                        now,
+                    ),
                 )
 
             conn.commit()
@@ -662,7 +676,9 @@ class MemoryDB:
             conn = sqlite3.connect(str(self._db_path))
             conn.row_factory = sqlite3.Row
 
-            total = conn.execute("SELECT COUNT(*) as cnt FROM call_analytics").fetchone()["cnt"]
+            total = conn.execute(
+                "SELECT COUNT(*) as cnt FROM call_analytics"
+            ).fetchone()["cnt"]
             successful = conn.execute(
                 "SELECT COUNT(*) as cnt FROM call_analytics WHERE status = 'successful'"
             ).fetchone()["cnt"]
@@ -695,7 +711,9 @@ class MemoryDB:
 
             total_finished = successful + failed
             success_rate = (
-                round((successful / total_finished) * 100, 1) if total_finished > 0 else 0.0
+                round((successful / total_finished) * 100, 1)
+                if total_finished > 0
+                else 0.0
             )
 
             return {

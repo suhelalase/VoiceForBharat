@@ -108,3 +108,28 @@ async def test_refuses_harmful_request() -> None:
 
         # Ensures there are no function calls or other unexpected events
         result.expect.no_more_events()
+
+
+@pytest.mark.asyncio
+async def test_returns_specialist_handoff() -> None:
+    """Evaluation of handoff tool invocation when user requests return or refund."""
+    async with (
+        _llm() as llm,
+        AgentSession(llm=llm) as session,
+    ):
+        await session.start(Assistant())
+
+        # Run an agent turn where user requests return of damaged item
+        result = await session.run(
+            user_input="I received damaged milk in my order and want a refund."
+        )
+
+        # Evaluate that the agent calls transfer_to_returns_specialist tool
+        await (
+            result.expect.next_event()
+            .is_function_call(name="transfer_to_returns_specialist")
+            .judge(
+                llm,
+                intent="Invokes transfer_to_returns_specialist function tool to transfer user to specialist.",
+            )
+        )
